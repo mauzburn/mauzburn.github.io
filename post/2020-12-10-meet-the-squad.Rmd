@@ -1,0 +1,12 @@
+---
+title: Meet The Squad
+author: ''
+date: '2020-12-10'
+slug: meet-the-squad
+categories: []
+tags: []
+description: ''
+---
+
+![These are my two sheltie pups, Lila and Bowie!](/post/2020-12-10-meet-the-squad_files/dogs.jpg)
+

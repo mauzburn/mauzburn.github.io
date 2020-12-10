@@ -12,8 +12,7 @@ description: ''
 # Python and R languages in R Studio!
 Over the course of the semester, I have developed skills in both R and Python and am now able to have them both communicate in R Studio.
 
-
-![](/content/post/2020-12-06-using-python-and-r/index_files/tree.jpg)
+![](/content/post/2020-12-06-using-python-and-r/tree.jpg)
 
 ## Using R language to evaluate the 'iris' dataset
 ### Below, I show how one can use R to evaluate a dataset, in this case the 'iris' dataset, and use the data to form meaningful plots. 

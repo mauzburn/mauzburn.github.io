@@ -7,6 +7,6 @@ categories: []
 tags: []
 ---
 
-![These are my two sheltie pups, Lila and Bowie!](/Users/madeleineausburn/Desktop/website/website/content/post/2020-12-05-meet-the-squad/index_files/dogs.jpg)
+![These are my two sheltie pups, Lila and Bowie!](/2020-12-05-meet-the-squad/index_files/dogs.jpg)
 
 
