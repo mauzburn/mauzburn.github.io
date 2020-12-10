@@ -1,0 +1,316 @@
+---
+title: "Project 2"
+author: "Madeleine Ausburn (mra2572)"
+date: "2020-12-01"
+output:
+  html_document:
+    toc: yes
+    toc_float:
+      collapsed: no
+      smooth_scroll: yes
+  pdf_document:
+    toc: no
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, eval=TRUE, fig.align = "center", warning = F, message = F, tidy = TRUE, tidy.opts = list(width.cutoff=60), R.options = list(max.print=100))
+```
+
+
+  This dataset, obtained through the 'fivethirtyeight' database, outlines each case of police killings in the United States during the year of 2015. The variables I chose to include are particular to each victim of said police killings: age, race/ethnicity, armed (whether or not they possessed a  weapon at the time of their murder), the percentage of the population that was white, black or hispanic/latino in the area that the shooting took place, median household income of the area, poverty rates of the area, and proportion of college graduates in the area. In total, there are 448 observations. I chose this dataset because there is a great deal of public discourse regarding the disproportionate brutality that people of color face at the hands of the police in this country, but I wanted to quantify and analyze this phenomenon, among other variables, to visualize this tragic phenomenon. 
+
+
+##0: Mutation of dataset
+```{r}
+policebrutality <- read.csv("policebrutality.csv")
+library(dplyr)
+
+#Divide age into 3 categories
+df <- policebrutality %>% mutate(age = cut(age, quantile(age, c(0, .25, .75, 1)), labels=c('Young', 'Middle', 'Old'), include.lowest = TRUE))
+
+#Get rid of gender variable
+df <- df[-c(2)]
+
+#Create binary for armed status
+df$armed <- ifelse(df$armed=='No',0,1)
+
+#Create new column for non-white status
+df1 <- df %>% mutate(share_nonwhite = share_black+share_hispanic)
+df2 <- df1 %>% mutate(majority = ifelse(share_white>=50, 'white','nonwhite'))
+```
+
+
+##1: MANOVA, ANOVA, & Post-Hoc testing and analysis
+```{r}
+#MANOVA test
+man <- manova(cbind(h_income,pov,college)~raceethnicity, data=df)
+summary(man)
+summary.aov(man) #all show significance
+
+#ANOVA test
+df1 %>% group_by(raceethnicity) %>% summarize(mean(h_income), mean(pov), mean(college))
+
+#Post hoc t-test
+pairwise.t.test(df$pov, df$raceethnicity, p.adj = "none")
+pairwise.t.test(df$h_income, df$raceethnicity, p.adj = "none")
+pairwise.t.test(df$college, df$raceethnicity, p.adj = "none")
+
+#Probability of at least one type I error
+1-(0.95)^34
+#Bonferroni correction
+.05/34 #after correcting p value, the only variable that has significant effect is poverty
+
+###MANOVA assumptions
+#Test multivariate normality for each group (null: assumption met)
+library(rstatix)
+group <- df$raceethnicity
+DVs <- df %>% select(h_income, pov, college)
+
+#Test multivariate normality for each group (null: assumption met)
+sapply(split(DVs,group), mshapiro_test)
+```
+ 
+  In the MANOVA test conducted, the numeric variables of poverty rates, median household income, and percent college education were tested to evaluate whether or not there was a mean difference across the levels of the categorical variable, race/ethnicity. In this MANOVA test, each numeric variable yielded a significant result, so univariate ANOVA tests were performed for each numeric variable to show the mean difference across different race/ethnicity groups. After performing the post-hoc t-tests, as well, the total number of tests performed came out to a total of 34. This means that the probability of at least one type I error is 0.825, which makes sense considering the size of this dataset, and the bonferroni correction yielded a new p-value of 0.0015. With this new p-value, only the poverty variable had a significant effect with race/ethnicity. When the MANOVA assumptions were tested against this model, it was found that the multivariate normality for every numeric variable had a p-value of less than 0.05, therefore violating the assumption of multivariate normality.
+
+##2: Randomization test: mean difference
+```{r}
+df2 %>% group_by(majority)%>%
+  summarize(means=mean(pov))%>%summarize(`mean_diff`=diff(means))
+
+rand_dist<-vector()
+
+for(i in 1:5000){
+new<-data.frame(pov=sample(df2$pov),majority=df2$majority)
+rand_dist[i]<-mean(new[new$majority=="white",]$pov)-   
+              mean(new[new$majority=="nonwhite",]$pov)}
+
+{hist(rand_dist,main="",ylab=""); abline(v= c(-11.93554, 11.93554),col="red")}
+
+mean(rand_dist > 11.93554 | rand_dist < -11.93554)
+```
+  
+  For this data, a mean difference randomization test was conducted between the variables of majority, indicating if the majority demographic of the area the killing took place in was white or non-white, and poverty rates. The null hypothesis is that there will be no difference in poverty rates between majority white and majority non-white areas. The alternative hypothesis is that there will be a significant difference in poverty rates between areas that are majority white and majority non-white. To visualize the results of this randomization test, a histogram was created and, as seen in the plot, there is a very normal distribution. The test statistic yielded a value of 0, which is an estimation that indicates that the actual p-value is incredibly small, therefore allowing us to reject the null hypothesis and state that there is a statistically significant difference in poverty rates between areas that are majority white and majority non-white.
+
+##3: Linear regression model: poverty rates by college graduation rates and racial/ethnic majority
+```{r}
+#Mean center numeric variable
+df2$college_c <- df2$college - mean(df2$college)
+
+#Create linear regression model
+fit <- lm(pov ~ college_c*majority, data= df2)
+summary(fit)
+
+library(ggplot2)
+df2 %>% ggplot(aes(college_c, pov, color=majority))+geom_point()+geom_smooth(method = 'lm',se=F)
+
+#Assess homoskedasticity assumption
+resids<-fit$residuals
+fitvals<-fit$fitted.values
+ggplot()+geom_point(aes(fitvals,resids))+geom_hline(yintercept=0, col="red")
+```
+ 
+  After building and generating a summary of the linear regression model, we can conclude that, first, when controlling for college, non-white majority areas have a significantly lower poverty rates than white majority areas. Additionally, when controlling for race/ethnicity majority, college attendance rates have a significantly negative impact on poverty rates (meaning that the more college-educated the area is, the less poverty there will be). Lastly, the interaction between college attendance rates and race/ethnicity majority is significant, showing that the effect of racial/ethnic majority on poverty rates depends on college attendance rates. One interesting thing to note in the generated scatterplot is that despite being at the same, low levels of college education (x=-0.2), predominantly white areas have almost half of the poverty rates than do predominantly non-white areas.
+ 
+
+```{r}
+library(sandwich)
+library(lmtest)
+
+summary(fit)$coef
+coeftest(fit, vcov = vcovHC(fit)) #regression after adjusting standard errors 
+
+#Assess linearity assumption
+ggplot()+geom_qq(aes(sample=resids))+geom_qq()
+#Assess normality assumption
+ggplot()+geom_histogram(aes(resids),bins=10)
+
+#Proportion of variance explained by model
+summary(fit)
+set.seed(777)
+bogus<-data.frame(y=df2$pov,replicate(5,rnorm(448)))
+head(bogus,3) 
+summary(lm(y~.,data=bogus))
+```
+ 
+  In terms of checking assumptions, this model seemed to pass the linearity, normality, and homoskedasticity assumptions pretty well. Once the regression results were recomputed with robust standard errors, all of the variables, including the interaction, became significant. This was a change from the original calculation of the SEs, for none of the variables in that calculation were significant. The proportion of the variation in the outcome that this model predicts is about .3685. When adjusted, however, the proportion is reduced drastically to 0.004.
+
+
+##4: Regression model with bootstrapped SEs
+```{r}
+#Bootstrap residuals
+fit <- lm(pov ~ college_c*majority, data= df2)
+resids<-fit$residuals
+fitted<-fit$fitted.values
+
+resid_resamp<-replicate(5000,{
+new_resids<-sample(resids,replace=TRUE)
+newdat<-df2
+newdat$new_y<-fitted+new_resids
+fit<-lm(new_y ~ college_c * majority, data = newdat)
+coef(fit)
+})
+
+#Bootstrapped SEs (resampling residuals)
+resid_resamp%>%t%>%as.data.frame%>%summarize_all(sd)
+```
+
+  As compared to the original and robust standard errors, the bootstrap standard error for the college variable is the lowest (6.110), the boostrapped majoritywhite variable (1.073) is lower than the original, but higher than the robust, and the interaction between college and majority white's bootstrapped SE (7.306) was higher than the original, but lower than the robust. I posit that the reason for such small, if any, differences between the different SE calculations is due to the large size of this dataset.
+
+
+##5: Logistic regression model predicting binary variable
+```{r}
+#Binary variable: Black or NonBlack
+df2$arm<-ifelse(df2$armed==1, "Armed","Unarmed")
+df2$race<-ifelse(df2$raceethnicity=="Black",1,0)
+df2$race1<-ifelse(df2$race==1, "Black", "NonBlack")
+
+fit1 <- glm(race ~ pov + h_income + share_white, data=df2, family="binomial"(link="logit"))
+coeftest(fit1)
+exp(coef(fit1))
+```
+ 
+   In the regression model using the binary variable, race (black or non-black), the one significant result was between race and the share of the population that is white, with a p-value of 1.678e-07. The coefficient estimate for this relationship indicates that, when controlling for poverty rate and median household income, black people in this dataset live in areas with shares of white people at a rate of 0.9776 times that of non-black people. The other coefficients indicate that poverty rates are 1.0199 times higher for black individuals than for non-black individuals, median household income is approximately the same (1) between the black and non-black individuals in this dataset, and the intercept indicates that the number of black people in this dataset is 0.5549 times the number of non-black individuals.
+ 
+```{r}
+#Confusion matrix
+prob<-predict(fit1,type="response") 
+pred<-ifelse(prob>.5,1,0)
+table(prediction=pred, truth=df2$race)%>%addmargins
+
+(284+37)/448 #Accuracy
+37/133 #TPR(sensitivity)
+284/315 #TNR (specificity)
+37/68 #PPV (precision)
+```
+ 
+  The accuracy of this model was 0.717, its sensitivity (TPR) was 0.278, its specificity (TNR) was 0.902, and its precision (PPV) was 0.544. As one can see, the accuracy and particularly the specificity of this model were relatively high, meaning that the model was moderately accurate and very specific. The sensitivity and precision, however, were both low values, which indicates that the model was not well fit in terms of predicting correct positives, nor was it very good at predicting the real proportion of the data classified as "black" who actually were.
+ 
+```{r}
+df2$logit<-predict(fit1,type="link")
+df2%>%ggplot(aes(logit,color=race1,fill=race1))+geom_density( alpha=.4)+theme(legend.position=c(.85,.85))+geom_vline(xintercept=0)+xlab("logit (log-odds)")+geom_rug(aes(logit,color=race1))
+
+library(plotROC) 
+ROCplot<-ggplot(df2)+geom_roc(aes(d=race,m=prob), n.cuts=0)
+ROCplot
+calc_auc(ROCplot)
+```
+ 
+  The calculated AUC for this model was 0.711, which can be classified as "fair", and can be seen in the ROC plot, for the line cuts across the graph with only a slight curve rather than the ideal, high-reaching ROC plots.
+
+```{r}
+##Class Diagnostics Function
+class_diag <- function(probs,truth){
+  #CONFUSION MATRIX: CALCULATE ACCURACY, TPR, TNR, PPV
+  tab<-table(factor(probs>.5,levels=c("FALSE","TRUE")),truth)
+  acc=sum(diag(tab))/sum(tab)
+  sens=tab[2,2]/colSums(tab)[2]
+  spec=tab[1,1]/colSums(tab)[1]
+  ppv=tab[2,2]/rowSums(tab)[2]
+  f1=2*(sens*ppv)/(sens+ppv)
+
+  if(is.numeric(truth)==FALSE & is.logical(truth)==FALSE) truth<-as.numeric(truth)-1
+  
+  #CALCULATE EXACT AUC
+  ord<-order(probs, decreasing=TRUE)
+  probs <- probs[ord]; truth <- truth[ord]
+  
+  TPR=cumsum(truth)/max(1,sum(truth)) 
+  FPR=cumsum(!truth)/max(1,sum(!truth))
+  
+  dup<-c(probs[-1]>=probs[-length(probs)], FALSE)
+  TPR<-c(0,TPR[!dup],1); FPR<-c(0,FPR[!dup],1)
+  n <- length(TPR)
+  auc<- sum( ((TPR[-1]+TPR[-n])/2) * (FPR[-1]-FPR[-n]) )
+
+  data.frame(acc,sens,spec,ppv,f1,auc)
+}
+```
+
+
+##6: Logistic regression model using binary variable & all predictors
+```{r}
+fit2 <- glm(race ~ age + arm + majority + pov + h_income + college, data=df2, family="binomial")
+coeftest(fit2)
+exp(coef(fit2))%>%t
+
+#Confusion matrix
+prob<-predict(fit2,type="response") 
+pred<-ifelse(prob>.5, 1, 0)
+table(prediction=pred, truth=df2$race) %>% addmargins
+
+(291+39)/448 #Accuracy
+39/133 #TPR(sensitivity)
+291/315 #TNR (specificity)
+39/63 #PPV (precision)
+
+ROCplot<-ggplot(df2)+geom_roc(aes(d=race,m=prob), n.cuts=0)
+calc_auc(ROCplot)
+```
+
+  For the model created with all of the variables included, the accuracy was 0.737, the sensitivity was 0.293, the specificity was 0.924, and the precision was 0.619. As compared to the last model with only selected variables, this model had an increase, albeit modest, in accuracy, sensitivity, specificity and precision indicating that this model is a better fit. 
+  One interesting thing to note here is that there is no significant difference between if the individual was armed or unarmed in this dataset, in other words their death was not determined by their possession of a weapon. I found this to be of particular importance because many times that police kill a civillian, the excuse is that the civillian had a weapon, but this data discredits that statement.
+
+```{r}
+##K-fold CV on full model
+set.seed(1234)
+k=10
+data<-df2[sample(nrow(df2)),]
+folds<-cut(seq(1:nrow(df2)),breaks=k,labels=F)
+
+diags<-NULL
+for(i in 1:k){
+  train<-data[folds!=i,]
+  test<-data[folds==i,]
+  truth<-test$race
+  
+  fit2<-glm(race ~ age + arm + majority + pov + h_income + college, data=train, family="binomial")
+  probs<-predict(fit2,newdata = test,type="response")
+
+  diags<-rbind(diags,class_diag(probs,truth))
+}
+diags%>%summarize_all(mean)
+```
+
+  The 10-fold CV test using the same model generated an accuracy of 0.721, a sensitivity of 0.269, a specificity of 0.915, a precision of 0.578, and an AUC of 0.714. This AUC was lower than the in-sample AUC, which was 0.731, but still similar. As compared to the in-sample classification diagnostics, the out-of-sample values were lower in all categories, but only by a slim margin, which does not really tell us which model is a better fit.
+
+```{r}
+#Lasso on data to find best variables
+library(glmnet)
+y<-as.matrix(df2$race)
+x<-model.matrix(race ~ age + arm + majority + pov + h_income + college,data=df2)[,-1] 
+
+x<-scale(x)
+head(x)
+
+cv <- cv.glmnet(x,y, family="binomial")
+lasso1 <- glmnet(x,y,lambda=cv$lambda.1se)
+
+coef(lasso1)
+```
+
+The variables that are retained after performing LASSO on the model are race/ethnicity majority and poverty rates.
+
+```{r}
+##CV on variables that lasso selected
+set.seed(1234)
+k=10
+
+data1<-df2[sample(nrow(df2)),]
+folds<-cut(seq(1:nrow(df2)),breaks=k,labels=F)
+diags<-NULL
+for(i in 1:k){
+
+train<-data1[folds!=i,]
+test<-data1[folds==i,]
+truth<-test$race
+
+fit<-glm(race~pov+majority,data=train,family="binomial")
+probs<-predict(fit,newdata = test,type="response")
+
+diags<-rbind(diags,class_diag(probs,truth))
+}
+diags%>%summarize_all(mean)
+```
+
+ However, after the 10-fold CV using only the variables the LASSO selected was conducted, the AUC was much lower than that of the regressions above, which was 0.731 (in-sample) and 0.714 (out-of-sample). This means that there was not significant over-fitting in the more complex model with all of the variables.
+

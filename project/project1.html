@@ -1,0 +1,998 @@
+---
+title: 'Project 1: Exploratory Data Analysis'
+author: "SDS348"
+date: "2020-12-01"
+output:
+  html_document:
+    self_contained: no
+    toc: yes
+    toc_float:
+      collapsed: no
+      smooth_scroll: yes
+  pdf_document:
+    toc: no
+---
+
+<link href="/rmarkdown-libs/anchor-sections/anchor-sections.css" rel="stylesheet" />
+<script src="/rmarkdown-libs/anchor-sections/anchor-sections.js"></script>
+<script src="/rmarkdown-libs/kePrint/kePrint.js"></script>
+<link href="/rmarkdown-libs/lightable/lightable.css" rel="stylesheet" />
+
+
+<div id="data-wrangling-and-exploration" class="section level3">
+<h3>Data Wrangling and Exploration</h3>
+</div>
+<div id="introduction" class="section level3">
+<h3>Introduction</h3>
+<p>The data that I acquired for this project was found on the University of Wisconsin Population Health Institute’s website, where I honed in on county health rankings. Because I intend on going to medical school and eventually becoming a doctor, I found health data to be of particular interest. More than this, however, I am passionate about educating myself on health disparities seen across different groups in our countries. For my project, I chose to look at the 50 most populated counties in Texas, so that I knew there would be a sufficient sample size in each county, and some of its health and economic statistics. I extracted data and created two different datasets, one of health statistics (i.e. poor health report, poor mental health report, premature death rate, and the number of primary care doctors in that county) and one of socioeconomic statistics (i.e. uninsured rate, population, unemployment rate, and median household income). I am incredibly interested to see the relationships that I feel exist between variables such as uninsured rate and premature death rate, as I postulate that the higher the uninsured rate in a county is, the higher its premature death rate will be, as well. I am an advocate for the universalization of healthcare, so putting numbers to the disparities I already know exist between people of different SE backgrounds will be especially significant to me.</p>
+<hr />
+</div>
+<div id="joiningmerging" class="section level3">
+<h3>Joining/Merging</h3>
+<pre class="r"><code>library(tidyverse)
+library(knitr)
+library(dplyr)
+
+# Join dataframes by common variable: county
+healthbycounty &lt;- read.csv(&quot;healthbycounty.csv&quot;)
+socialeconomicdemographics &lt;- read.csv(&quot;socialeconomicdemographics.csv&quot;)
+
+df &lt;- healthbycounty %&gt;% left_join(socialeconomicdemographics, 
+    by = c(&quot;county&quot;))
+
+# Ensure that big dataset has at least 50 observations for
+# each variable and at least 5 variables
+df %&gt;% summarize(n_rows = n(), n_counties = n_distinct(county))</code></pre>
+<pre><code>##   n_rows n_counties
+## 1     50         50</code></pre>
+<pre class="r"><code>ncol(df)</code></pre>
+<pre><code>## [1] 9</code></pre>
+<p>I chose to join these two datasets by county, which was the only choice. I created these datasets based off of data I extracted, so I set them up in a way where the datasets could be easily joined by county name. After this, I wanted to double check my work and make sure that I not only had 50 observations, but also that each observation (i.e. county) was unique and that I didn’t have any repetitive data.</p>
+<hr />
+<p>###Wrangling</p>
+<p>Create new variables using mutate, explore relationships among variables, generate a summary table.</p>
+<p>Here, I mutated my merged dataset to create new columns, one of a doctor per person proportion to account for drastic differences in population size, and two other columns for quantiles of population and uninsured rate for easier cross comparisons to be made later on.</p>
+<pre class="r"><code># Create column denoting number of doctors per person in each
+# county&#39;s population
+df1 &lt;- df %&gt;% mutate(dr_per_person = (primary_care_dr/population))
+ncol(df1)</code></pre>
+<pre><code>## [1] 10</code></pre>
+<pre class="r"><code># Create column denoting quartiles of uninsured rate per
+# county and of population per county #Quartile 4 denotes the
+# highest uninsurance rate and the greatest population.
+df2 &lt;- df1 %&gt;% mutate(uninsured4tile = ntile(uninsured_rate, 
+    4)) %&gt;% mutate(population4tile = ntile(population, 4))
+ncol(df2)</code></pre>
+<pre><code>## [1] 12</code></pre>
+<p>Examine relationships between variables using dplyr core functions</p>
+<pre class="r"><code># Examine relationship between above average uninsured rate,
+# # of doctors per person, and premature death rates
+df3 &lt;- df1 %&gt;% select(uninsured_rate, dr_per_person, premature_deaths) %&gt;% 
+    filter(uninsured_rate &gt;= mean(uninsured_rate)) %&gt;% arrange(desc(uninsured_rate))
+head(df3)</code></pre>
+<pre><code>##   uninsured_rate dr_per_person premature_deaths
+## 1             30  0.0004726311             6300
+## 2             30  0.0004431874             5600
+## 3             28  0.0003361624             6200
+## 4             23  0.0008261295             9900
+## 5             22  0.0006651449             6800
+## 6             21  0.0002705048             7700</code></pre>
+<pre class="r"><code># Examine relationship between below average uninsured rate,
+# # of doctors per person, and premature death rates
+df4 &lt;- df1 %&gt;% select(uninsured_rate, dr_per_person, premature_deaths) %&gt;% 
+    filter(uninsured_rate &lt;= mean(uninsured_rate)) %&gt;% arrange(uninsured_rate)
+head(df4)</code></pre>
+<pre><code>##   uninsured_rate dr_per_person premature_deaths
+## 1             11  0.0008572285             4200
+## 2             11  0.0005943602             4600
+## 3             12  0.0005793462             4400
+## 4             12  0.0007724643             4400
+## 5             13  0.0007632452             7300
+## 6             13  0.0002369949             7600</code></pre>
+<pre class="r"><code># Compare health reports among the quartiles of uninsured
+# rates in descending order of poor health reports
+table1 &lt;- df2 %&gt;% group_by(uninsured4tile) %&gt;% select(poor_health_report, 
+    poor_mental_health, uninsured_rate, county) %&gt;% arrange(desc(poor_health_report))
+head(table1)</code></pre>
+<pre><code>## # A tibble: 6 x 5
+## # Groups:   uninsured4tile [3]
+##   uninsured4tile poor_health_report poor_mental_health uninsured_rate county  
+##            &lt;int&gt;              &lt;int&gt;              &lt;dbl&gt;          &lt;int&gt; &lt;chr&gt;   
+## 1              4                 36                4.1             28 WEBB    
+## 2              4                 32                4               30 CAMERON 
+## 3              4                 29                3.9             30 HIDALGO 
+## 4              4                 28                4               21 EL PASO 
+## 5              2                 24                3.8             17 BEXAR   
+## 6              3                 23                4.1             20 ANGELINA</code></pre>
+<p>Find percentiles and probabilities of certain conditions for the dataset</p>
+<pre class="r"><code># What unemployment rate is the cut for the 75th percentile
+# in the 50 biggest Texan counties?
+qnorm(0.75, mean = mean(df2$unemployment_rate), sd = sd(df2$unemployment_rate))</code></pre>
+<pre><code>## [1] 5.023812</code></pre>
+<pre class="r"><code># What median household income is the cutoff to be in the
+# 75th percentile in the 50 biggest Texan counties?
+qnorm(0.75, mean = mean(df2$med_house_income), sd = sd(df2$med_house_income))</code></pre>
+<pre><code>## [1] 69653.01</code></pre>
+<pre class="r"><code># If a county has 100 primary care physicians, what is the
+# probability that a randomly selected county has less
+# doctors than it?
+pnorm(100, mean = mean(df2$primary_care_dr), sd = sd(df2$primary_care_dr))</code></pre>
+<pre><code>## [1] 0.3382354</code></pre>
+<pre class="r"><code># If a county has a premature death rate of 6000, what is the
+# probability that a randomly selected county has a greater
+# premature death rate?
+pnorm(6000, mean = mean(df2$premature_deaths), sd = sd(df2$premature_deaths))</code></pre>
+<pre><code>## [1] 0.2338207</code></pre>
+<p>Create overall summary statistics for the entire dataset</p>
+<pre class="r"><code># Mean of every numeric variable
+means &lt;- df2 %&gt;% summarize_at(vars(uninsured_rate:dr_per_person), 
+    mean, na.rm = T)
+
+# Standard deviation of all numeric variables
+stdevs &lt;- df2 %&gt;% summarize_at(vars(uninsured_rate:dr_per_person), 
+    sd, na.rm = T)
+
+# Overall table of min/max for each numeric variable
+summarytable &lt;- df2 %&gt;% summarize_if(is.numeric, list(min = min, 
+    max = max), na.rm = T)
+
+library(kableExtra)</code></pre>
+<p>Create summary statistics using the grouping function</p>
+<pre class="r"><code># Mean &amp; standard dev. of unemployment rate, number of
+# doctors per person, and premature death rate by uninsured
+# quartile and population quartile
+meanhealth &lt;- df2 %&gt;% group_by(uninsured4tile, population4tile) %&gt;% 
+    mutate(poptile = ntile(population, 4)) %&gt;% summarize(avg.unemployment = mean(unemployment_rate, 
+    na.rm = T), avg.dr.per.person = mean(dr_per_person, na.rm = T), 
+    avg.deathrate = mean(premature_deaths, na.rm = T), sd.unemployment = sd(unemployment_rate, 
+        na.rm = T), sd.dr.per.person = sd(dr_per_person, na.rm = T), 
+    sd.deathrate = sd(premature_deaths, na.rm = T), var.unemployment = var(unemployment_rate, 
+        na.rm = T), var.dr.per.person = var(dr_per_person, na.rm = T), 
+    var.deathrate = var(premature_deaths, na.rm = T))
+
+# Remove rows with NA values - this occurred because some
+# insurance4tile and population4tile combinations do not
+# exist
+meanhealth1 &lt;- meanhealth %&gt;% na.omit()
+head(meanhealth1)</code></pre>
+<pre><code>## # A tibble: 6 x 11
+## # Groups:   uninsured4tile [2]
+##   uninsured4tile population4tile avg.unemployment avg.dr.per.pers… avg.deathrate
+##            &lt;int&gt;           &lt;int&gt;            &lt;dbl&gt;            &lt;dbl&gt;         &lt;dbl&gt;
+## 1              1               1             4.83         0.000373         7667.
+## 2              1               2             3.17         0.000496         6400 
+## 3              1               3             4.23         0.000725         7267.
+## 4              1               4             3.62         0.000701         4400 
+## 5              2               2             3.42         0.000513         7820 
+## 6              2               3             3.8          0.000629         6067.
+## # … with 6 more variables: sd.unemployment &lt;dbl&gt;, sd.dr.per.person &lt;dbl&gt;,
+## #   sd.deathrate &lt;dbl&gt;, var.unemployment &lt;dbl&gt;, var.dr.per.person &lt;dbl&gt;,
+## #   var.deathrate &lt;dbl&gt;</code></pre>
+<p>Create a summary statistics table of a few numeric variables using kable package</p>
+<pre class="r"><code># Create a column denoting median household income quartile
+df5 &lt;- df2 %&gt;% mutate(income4tile = ntile(med_house_income, 4)) %&gt;% 
+    mutate(UninsuredQtile = recode_factor(uninsured4tile, `1` = &quot;Q1&quot;, 
+        `2` = &quot;Q2&quot;, `3` = &quot;Q3&quot;, `4` = &quot;Q4&quot;)) %&gt;% mutate(IncomeQtile = recode_factor(income4tile, 
+    `1` = &quot;Q1&quot;, `2` = &quot;Q2&quot;, `3` = &quot;Q3&quot;, `4` = &quot;Q4&quot;))
+
+# Create a subset of data for summary table
+sumtable &lt;- df5[-c(1:2, 6:7, 11:13, 15)]
+
+
+# Create dataset with summary statistics for 3 variables
+# grouped by uninsured quartile
+summaries &lt;- sumtable %&gt;% group_by(UninsuredQtile) %&gt;% select(premature_deaths, 
+    poor_mental_health, poor_health_report) %&gt;% summarize_each(funs(min = min, 
+    q25 = quantile(., 0.25), median = median, q75 = quantile(., 
+        0.75), max = max, mean = mean, sd = sd))
+# Transpose summary stats df so that each quartile is its own
+# column
+summaries1 &lt;- data.frame(t(summaries[-1]))
+
+# Group rows by common variable
+summaries3 &lt;- summaries1[c(1, 4, 7, 10, 13, 16, 19, 2, 5, 8, 
+    11, 14, 17, 20, 3, 6, 9, 12, 15, 18, 21), ]
+
+
+# Create summary table with kable package
+library(kableExtra)
+sumfinal &lt;- kable(summaries3[1:21, 1:4], caption = &quot;Uninsured Quartiles&quot;) %&gt;% 
+    kable_styling(&quot;striped&quot;, full_width = F) %&gt;% pack_rows(&quot;Premature Deaths&quot;, 
+    1, 7) %&gt;% pack_rows(&quot;Poor Mental Health Report&quot;, 8, 14) %&gt;% 
+    pack_rows(&quot;Poor Health Report&quot;, 15, 21)
+sumfinal</code></pre>
+<table class="table table-striped" style="width: auto !important; margin-left: auto; margin-right: auto;">
+<caption>
+<span id="tab:unnamed-chunk-7">Table 1: </span>Uninsured Quartiles
+</caption>
+<thead>
+<tr>
+<th style="text-align:left;">
+</th>
+<th style="text-align:right;">
+X1
+</th>
+<th style="text-align:right;">
+X2
+</th>
+<th style="text-align:right;">
+X3
+</th>
+<th style="text-align:right;">
+X4
+</th>
+</tr>
+</thead>
+<tbody>
+<tr grouplength="7">
+<td colspan="5" style="border-bottom: 1px solid;">
+<strong>Premature Deaths</strong>
+</td>
+</tr>
+<tr>
+<td style="text-align:left; padding-left:  2em;" indentlevel="1">
+premature_deaths_min
+</td>
+<td style="text-align:right;">
+4.200000e+03
+</td>
+<td style="text-align:right;">
+4600.0000000
+</td>
+<td style="text-align:right;">
+7.100000e+03
+</td>
+<td style="text-align:right;">
+5.600000e+03
+</td>
+</tr>
+<tr>
+<td style="text-align:left; padding-left:  2em;" indentlevel="1">
+premature_deaths_q25
+</td>
+<td style="text-align:right;">
+4.500000e+03
+</td>
+<td style="text-align:right;">
+6100.0000000
+</td>
+<td style="text-align:right;">
+7.400000e+03
+</td>
+<td style="text-align:right;">
+6.275000e+03
+</td>
+</tr>
+<tr>
+<td style="text-align:left; padding-left:  2em;" indentlevel="1">
+premature_deaths_median
+</td>
+<td style="text-align:right;">
+6.300000e+03
+</td>
+<td style="text-align:right;">
+6900.0000000
+</td>
+<td style="text-align:right;">
+7.650000e+03
+</td>
+<td style="text-align:right;">
+7.250000e+03
+</td>
+</tr>
+<tr>
+<td style="text-align:left; padding-left:  2em;" indentlevel="1">
+premature_deaths_q75
+</td>
+<td style="text-align:right;">
+7.300000e+03
+</td>
+<td style="text-align:right;">
+7900.0000000
+</td>
+<td style="text-align:right;">
+8.775000e+03
+</td>
+<td style="text-align:right;">
+9.600000e+03
+</td>
+</tr>
+<tr>
+<td style="text-align:left; padding-left:  2em;" indentlevel="1">
+premature_deaths_max
+</td>
+<td style="text-align:right;">
+1.090000e+04
+</td>
+<td style="text-align:right;">
+9500.0000000
+</td>
+<td style="text-align:right;">
+1.010000e+04
+</td>
+<td style="text-align:right;">
+1.100000e+04
+</td>
+</tr>
+<tr>
+<td style="text-align:left; padding-left:  2em;" indentlevel="1">
+premature_deaths_mean
+</td>
+<td style="text-align:right;">
+6.276923e+03
+</td>
+<td style="text-align:right;">
+6984.6153846
+</td>
+<td style="text-align:right;">
+8.083333e+03
+</td>
+<td style="text-align:right;">
+7.883333e+03
+</td>
+</tr>
+<tr>
+<td style="text-align:left; padding-left:  2em;" indentlevel="1">
+premature_deaths_sd
+</td>
+<td style="text-align:right;">
+1.944717e+03
+</td>
+<td style="text-align:right;">
+1587.3700229
+</td>
+<td style="text-align:right;">
+9.787128e+02
+</td>
+<td style="text-align:right;">
+1.899681e+03
+</td>
+</tr>
+<tr grouplength="7">
+<td colspan="5" style="border-bottom: 1px solid;">
+<strong>Poor Mental Health Report</strong>
+</td>
+</tr>
+<tr>
+<td style="text-align:left; padding-left:  2em;" indentlevel="1">
+poor_mental_health_min
+</td>
+<td style="text-align:right;">
+3.000000e+00
+</td>
+<td style="text-align:right;">
+3.2000000
+</td>
+<td style="text-align:right;">
+3.400000e+00
+</td>
+<td style="text-align:right;">
+3.400000e+00
+</td>
+</tr>
+<tr>
+<td style="text-align:left; padding-left:  2em;" indentlevel="1">
+poor_mental_health_q25
+</td>
+<td style="text-align:right;">
+3.200000e+00
+</td>
+<td style="text-align:right;">
+3.3000000
+</td>
+<td style="text-align:right;">
+3.500000e+00
+</td>
+<td style="text-align:right;">
+3.675000e+00
+</td>
+</tr>
+<tr>
+<td style="text-align:left; padding-left:  2em;" indentlevel="1">
+poor_mental_health_median
+</td>
+<td style="text-align:right;">
+3.400000e+00
+</td>
+<td style="text-align:right;">
+3.5000000
+</td>
+<td style="text-align:right;">
+3.650000e+00
+</td>
+<td style="text-align:right;">
+3.800000e+00
+</td>
+</tr>
+<tr>
+<td style="text-align:left; padding-left:  2em;" indentlevel="1">
+poor_mental_health_q75
+</td>
+<td style="text-align:right;">
+3.600000e+00
+</td>
+<td style="text-align:right;">
+3.7000000
+</td>
+<td style="text-align:right;">
+3.800000e+00
+</td>
+<td style="text-align:right;">
+3.925000e+00
+</td>
+</tr>
+<tr>
+<td style="text-align:left; padding-left:  2em;" indentlevel="1">
+poor_mental_health_max
+</td>
+<td style="text-align:right;">
+3.700000e+00
+</td>
+<td style="text-align:right;">
+4.1000000
+</td>
+<td style="text-align:right;">
+4.100000e+00
+</td>
+<td style="text-align:right;">
+4.100000e+00
+</td>
+</tr>
+<tr>
+<td style="text-align:left; padding-left:  2em;" indentlevel="1">
+poor_mental_health_mean
+</td>
+<td style="text-align:right;">
+3.361538e+00
+</td>
+<td style="text-align:right;">
+3.5538462
+</td>
+<td style="text-align:right;">
+3.666667e+00
+</td>
+<td style="text-align:right;">
+3.775000e+00
+</td>
+</tr>
+<tr>
+<td style="text-align:left; padding-left:  2em;" indentlevel="1">
+poor_mental_health_sd
+</td>
+<td style="text-align:right;">
+2.292686e-01
+</td>
+<td style="text-align:right;">
+0.2601775
+</td>
+<td style="text-align:right;">
+1.922751e-01
+</td>
+<td style="text-align:right;">
+2.094365e-01
+</td>
+</tr>
+<tr grouplength="7">
+<td colspan="5" style="border-bottom: 1px solid;">
+<strong>Poor Health Report</strong>
+</td>
+</tr>
+<tr>
+<td style="text-align:left; padding-left:  2em;" indentlevel="1">
+poor_health_report_min
+</td>
+<td style="text-align:right;">
+1.200000e+01
+</td>
+<td style="text-align:right;">
+13.0000000
+</td>
+<td style="text-align:right;">
+1.500000e+01
+</td>
+<td style="text-align:right;">
+1.800000e+01
+</td>
+</tr>
+<tr>
+<td style="text-align:left; padding-left:  2em;" indentlevel="1">
+poor_health_report_q25
+</td>
+<td style="text-align:right;">
+1.400000e+01
+</td>
+<td style="text-align:right;">
+16.0000000
+</td>
+<td style="text-align:right;">
+1.750000e+01
+</td>
+<td style="text-align:right;">
+1.800000e+01
+</td>
+</tr>
+<tr>
+<td style="text-align:left; padding-left:  2em;" indentlevel="1">
+poor_health_report_median
+</td>
+<td style="text-align:right;">
+1.500000e+01
+</td>
+<td style="text-align:right;">
+18.0000000
+</td>
+<td style="text-align:right;">
+1.800000e+01
+</td>
+<td style="text-align:right;">
+1.900000e+01
+</td>
+</tr>
+<tr>
+<td style="text-align:left; padding-left:  2em;" indentlevel="1">
+poor_health_report_q75
+</td>
+<td style="text-align:right;">
+1.700000e+01
+</td>
+<td style="text-align:right;">
+19.0000000
+</td>
+<td style="text-align:right;">
+2.000000e+01
+</td>
+<td style="text-align:right;">
+2.825000e+01
+</td>
+</tr>
+<tr>
+<td style="text-align:left; padding-left:  2em;" indentlevel="1">
+poor_health_report_max
+</td>
+<td style="text-align:right;">
+1.900000e+01
+</td>
+<td style="text-align:right;">
+24.0000000
+</td>
+<td style="text-align:right;">
+2.300000e+01
+</td>
+<td style="text-align:right;">
+3.600000e+01
+</td>
+</tr>
+<tr>
+<td style="text-align:left; padding-left:  2em;" indentlevel="1">
+poor_health_report_mean
+</td>
+<td style="text-align:right;">
+1.530769e+01
+</td>
+<td style="text-align:right;">
+17.7692308
+</td>
+<td style="text-align:right;">
+1.858333e+01
+</td>
+<td style="text-align:right;">
+2.300000e+01
+</td>
+</tr>
+<tr>
+<td style="text-align:left; padding-left:  2em;" indentlevel="1">
+poor_health_report_sd
+</td>
+<td style="text-align:right;">
+2.213015e+00
+</td>
+<td style="text-align:right;">
+2.8622208
+</td>
+<td style="text-align:right;">
+2.391589e+00
+</td>
+<td style="text-align:right;">
+6.466698e+00
+</td>
+</tr>
+</tbody>
+</table>
+<p>Upon my preliminary exploration of the relationships my dataset held, I found that, first, lower premature death rates were found in counties with the lowest uninsured rates. This supports my hypothesis that the counties with higher levels of citizens who are uninsured also have higher premature death rates, which opens the door for further analysis to test if this correlation is due to the fact that those who are uninsured do not seek medical attention as readily. Second in this preliminary analysis, I found that of the four highest poor health reports across all counties, all of those were in the 4th uninsured quartile, meaning that they were in the top 25% of uninsured rates, and all also had high poor mental health reports. To test these relationships further, I created a summary statistic dataframe that calculated min, max, quantile 25, median, quantile 75, max, mean, and standard deviation. From this, I grouped each variable and all of its respective statistics in order to compile a summary statistics table. As seen in this table, across all three variables included (poor health report, poor mental health report, and premature death rate), people in the 3rd and especially the 4th quartile for uninsured rates had the highest values. This means that across these three factors, counties with higher rates of uninsured citizens had higher premature death rates, more poor health reports, and more poor mental health days reported. I found it of particular importance to include poor mental health reports in this analysis, for I feel as though it is often absent in reports such as these, but it obviously had a high correlation with rates of uninsurance and was therefore necessary, in my opinion.</p>
+<p>###Tidying/Reshaping</p>
+<p>Use both pivot_longer and pivot_wider to reshape the dataset</p>
+<pre class="r"><code># Reshape dataframe from wide to long by creating a stats
+# column where the names of the calculated summary statistics
+# go
+meanhealth2 &lt;- meanhealth1 %&gt;% pivot_longer(c(3:8), names_to = &quot;stat&quot;, 
+    values_to = &quot;value&quot;)
+head(meanhealth2)</code></pre>
+<pre><code>## # A tibble: 6 x 7
+## # Groups:   uninsured4tile [1]
+##   uninsured4tile population4tile var.unemployment var.dr.per.pers… var.deathrate
+##            &lt;int&gt;           &lt;int&gt;            &lt;dbl&gt;            &lt;dbl&gt;         &lt;dbl&gt;
+## 1              1               1             3.45     0.0000000697     10243333.
+## 2              1               1             3.45     0.0000000697     10243333.
+## 3              1               1             3.45     0.0000000697     10243333.
+## 4              1               1             3.45     0.0000000697     10243333.
+## 5              1               1             3.45     0.0000000697     10243333.
+## 6              1               1             3.45     0.0000000697     10243333.
+## # … with 2 more variables: stat &lt;chr&gt;, value &lt;dbl&gt;</code></pre>
+<pre class="r"><code># Reshape dataframe back from long to wide by eliminating the
+# stats column and instead having each summary statistic be
+# its own column
+tidy1 &lt;- meanhealth2 %&gt;% pivot_wider(names_from = &quot;stat&quot;, values_from = &quot;value&quot;)
+head(tidy1)</code></pre>
+<pre><code>## # A tibble: 6 x 11
+## # Groups:   uninsured4tile [2]
+##   uninsured4tile population4tile var.unemployment var.dr.per.pers… var.deathrate
+##            &lt;int&gt;           &lt;int&gt;            &lt;dbl&gt;            &lt;dbl&gt;         &lt;dbl&gt;
+## 1              1               1            3.45      0.0000000697     10243333.
+## 2              1               2            0.103     0.0000000203        70000 
+## 3              1               3            1.10      0.0000000121       903333.
+## 4              1               4            0.429     0.0000000186        26667.
+## 5              2               2            0.067     0.0000000396      1507000 
+## 6              2               3            1.47      0.0000000536      2523333.
+## # … with 6 more variables: avg.unemployment &lt;dbl&gt;, avg.dr.per.person &lt;dbl&gt;,
+## #   avg.deathrate &lt;dbl&gt;, sd.unemployment &lt;dbl&gt;, sd.dr.per.person &lt;dbl&gt;,
+## #   sd.deathrate &lt;dbl&gt;</code></pre>
+<pre class="r"><code># Reshape dataframe from wide to long by creating a quartile
+# column for both population quartile and uninsured quartile
+# First, make population quartile a factor so that it can be
+# classified as categorical like uninsured quartile is
+meanhealth1$population4tile &lt;- as.factor(meanhealth1$population4tile)
+meanhealth1$uninsured4tile &lt;- as.factor(meanhealth1$uninsured4tile)
+meanhealth4 &lt;- meanhealth1 %&gt;% pivot_longer((1:2), names_to = &quot;quartile&quot;, 
+    values_to = &quot;value&quot;)
+head(meanhealth4)</code></pre>
+<pre><code>## # A tibble: 6 x 11
+##   avg.unemployment avg.dr.per.pers… avg.deathrate sd.unemployment
+##              &lt;dbl&gt;            &lt;dbl&gt;         &lt;dbl&gt;           &lt;dbl&gt;
+## 1             4.83         0.000373         7667.           1.86 
+## 2             4.83         0.000373         7667.           1.86 
+## 3             3.17         0.000496         6400            0.321
+## 4             3.17         0.000496         6400            0.321
+## 5             4.23         0.000725         7267.           1.05 
+## 6             4.23         0.000725         7267.           1.05 
+## # … with 7 more variables: sd.dr.per.person &lt;dbl&gt;, sd.deathrate &lt;dbl&gt;,
+## #   var.unemployment &lt;dbl&gt;, var.dr.per.person &lt;dbl&gt;, var.deathrate &lt;dbl&gt;,
+## #   quartile &lt;chr&gt;, value &lt;fct&gt;</code></pre>
+<pre class="r"><code># Reshape dataframe back from long to wide by eliminating the
+# quartile column and instead having a column for both
+# population quartile and uninsured quartile
+tidy2 &lt;- meanhealth4 %&gt;% pivot_wider(names_from = &quot;quartile&quot;, 
+    values_from = &quot;value&quot;)
+head(tidy2)</code></pre>
+<pre><code>## # A tibble: 6 x 11
+##   avg.unemployment avg.dr.per.pers… avg.deathrate sd.unemployment
+##              &lt;dbl&gt;            &lt;dbl&gt;         &lt;dbl&gt;           &lt;dbl&gt;
+## 1             4.83         0.000373         7667.           1.86 
+## 2             3.17         0.000496         6400            0.321
+## 3             4.23         0.000725         7267.           1.05 
+## 4             3.62         0.000701         4400            0.655
+## 5             3.42         0.000513         7820            0.259
+## 6             3.8          0.000629         6067.           1.21 
+## # … with 7 more variables: sd.dr.per.person &lt;dbl&gt;, sd.deathrate &lt;dbl&gt;,
+## #   var.unemployment &lt;dbl&gt;, var.dr.per.person &lt;dbl&gt;, var.deathrate &lt;dbl&gt;,
+## #   uninsured4tile &lt;fct&gt;, population4tile &lt;fct&gt;</code></pre>
+<p>###Visualizing</p>
+<p>Create a correlation matrix and a correlation heatmap for each variable in the dataframe</p>
+<pre class="r"><code># Correlation matrix between each variable
+df5 %&gt;% select_if(is.numeric) %&gt;% cor()</code></pre>
+<pre><code>##                    uninsured_rate poor_health_report premature_deaths
+## uninsured_rate         1.00000000        0.786965340        0.2626304
+## poor_health_report     0.78696534        1.000000000        0.1141157
+## premature_deaths       0.26263042        0.114115742        1.0000000
+## poor_mental_health     0.63629056        0.739968228        0.4732820
+## primary_care_dr        0.03119369        0.009547053       -0.3320732
+## population             0.09797452        0.038132007       -0.3097203
+## unemployment_rate      0.48014527        0.398910500        0.3321471
+## med_house_income      -0.65691680       -0.677496082       -0.5893937
+##                    poor_mental_health primary_care_dr  population
+## uninsured_rate             0.63629056     0.031193687  0.09797452
+## poor_health_report         0.73996823     0.009547053  0.03813201
+## premature_deaths           0.47328203    -0.332073151 -0.30972035
+## poor_mental_health         1.00000000    -0.125532022 -0.08945763
+## primary_care_dr           -0.12553202     1.000000000  0.98585031
+## population                -0.08945763     0.985850306  1.00000000
+## unemployment_rate          0.36829287    -0.033013488  0.01246924
+## med_house_income          -0.85256015     0.151581994  0.11118516
+##                    unemployment_rate med_house_income dr_per_person
+## uninsured_rate            0.48014527      -0.65691680   -0.23885811
+## poor_health_report        0.39891050      -0.67749608   -0.05855486
+## premature_deaths          0.33214713      -0.58939375   -0.16339486
+## poor_mental_health        0.36829287      -0.85256015   -0.09924148
+## primary_care_dr          -0.03301349       0.15158199    0.25423222
+## population                0.01246924       0.11118516    0.15438152
+## unemployment_rate         1.00000000      -0.38206943   -0.18036799
+## med_house_income         -0.38206943       1.00000000    0.05948575
+##                    uninsured4tile population4tile income4tile
+## uninsured_rate         0.87093323     -0.03288165 -0.56656281
+## poor_health_report     0.57734205      0.09188694 -0.66542302
+## premature_deaths       0.38127211     -0.63346986 -0.49290398
+## poor_mental_health     0.57231971     -0.19816266 -0.84698991
+## primary_care_dr        0.08919203      0.63687755  0.20278446
+## population             0.13942391      0.60989943  0.18185951
+## unemployment_rate      0.38984233     -0.01372749 -0.31793352
+## med_house_income      -0.62494454      0.25952377  0.91674684
+##  [ reached getOption(&quot;max.print&quot;) -- omitted 4 rows ]</code></pre>
+<pre class="r"><code># Correlation heatmap of dataset
+df_c &lt;- df5[, c(2:10)]
+cordf &lt;- round(cor(df_c), 2)
+library(reshape2)
+melted_cordf &lt;- melt(cordf)
+ggplot(data = melted_cordf, aes(x = Var1, y = Var2, fill = value)) + 
+    geom_tile() + theme(axis.text.x = element_text(angle = 90, 
+    size = 8)) + labs(melted_cordf, title = &quot;Correlation Heatmap&quot;)</code></pre>
+<p><img src="public/project/project1_files/figure-html/unnamed-chunk-9-1.png" width="672" style="display: block; margin: auto;" /></p>
+<p>Create two unique plots to explore relationships among correlated variables from the calculations above</p>
+<pre class="r"><code># Scatterplot for relationship between poor mental health
+# report and median household income by uninsured quartile
+library(ggthemes)
+df5$uninsured4tile &lt;- as.factor(df5$uninsured4tile)
+ggplot(data = df5, aes(x = med_house_income, y = poor_mental_health, 
+    color = uninsured4tile)) + geom_point() + geom_smooth(method = &quot;loess&quot;, 
+    color = &quot;blue3&quot;, fill = &quot;azure4&quot;, se = TRUE) + labs(title = &quot;Relationship Between Mental Health and Income \n by Uninsured Status&quot;, 
+    x = &quot;Median Household Income ($)&quot;, y = &quot;Avg. Poor Mental Health Days \n (in the last 30 days)&quot;, 
+    color = &quot;Uninsured Quartile&quot;) + theme_economist() + scale_color_economist() + 
+    scale_x_continuous(breaks = scales::pretty_breaks(n = 5))</code></pre>
+<p><img src="public/project/project1_files/figure-html/unnamed-chunk-10-1.png" width="672" style="display: block; margin: auto;" /></p>
+<p>In the above scatterplot, the relationship between median household income, average poor mental health days, and uninsured quartile was evaluated. As shown by the plot, there is a strong negative correlation between average poor mental health days and median household income, meaning that as a county’s median household income increases, it’s average poor mental health days report decreases. To compound this effect, looking at the points on the graph, colored by uninsured quartile, shows us that only those counties in uninsured quartile 1 experience the the lowest poor mental health days report and the highest median household income (at the bottom right of the graph). Conversely, the points furthest to the left of the graph (i.e. the highest poor mental health days report and the lowest median household income) belong to counties in the 4th uninsured rate quartile, meaning that these points belong to the counties with the highest rate of uninsured citizens. We are always told that “money doesn’t buy happiness”, but as this graph shows, money definitely allows us to gain necessary resources that, in turn, may set us up for success in the realm of satisfaction.</p>
+<pre class="r"><code># Barplot for relationship between premature death rate and
+# uninsured rate quartiles by median household income
+# quartile
+ggplot(df5, aes(x = uninsured4tile, y = premature_deaths, fill = IncomeQtile)) + 
+    geom_bar(stat = &quot;summary&quot;, position = &quot;dodge&quot;) + geom_errorbar(stat = &quot;summary&quot;, 
+    position = &quot;dodge&quot;) + labs(title = &quot;Relationship Between Premature Death Rate and \n Uninsured Quartile by Income Quartile&quot;, 
+    x = &quot;Uninsured Quartile&quot;, y = &quot;Premature Death Rate \n (per 100,000 people)&quot;, 
+    fill = &quot;Income Quartile&quot;) + scale_fill_manual(values = c(&quot;#dadaeb&quot;, 
+    &quot;#9e9ac8&quot;, &quot;#6a51a3&quot;, &quot;#3f007d&quot;)) + scale_y_continuous(breaks = scales::pretty_breaks(n = 5)) + 
+    theme(axis.text = element_text(color = &quot;#3f007d&quot;)) + theme(axis.line = element_line(color = &quot;black&quot;, 
+    linetype = 1))</code></pre>
+<p><img src="public/project/project1_files/figure-html/unnamed-chunk-11-1.png" width="672" style="display: block; margin: auto;" />
+In the above barplot, the relationship between premature death rate, uninsured quartile, and income quartile is examined. Right of the bat, one may notice the absence of the darkest purple bar, denoting the 4th income quartile (i.e. the highest median household incomes), on uninsured quartiles 3 and 4. This is due to the fact that in the scope of my dataset, counties who belong to the top 25th percentile of median household income are only in either the 1st or 2nd quartile for uninsurance rate. Additionally, those in the 4th quartile for income experience the lowest premature death rates in both uninsured quartiles they exist in, with the highest earners (income quartile 4) and least uninsured (uninsured quartile 1) having the lowest premature death rate across every group in the plot. This contrasts heavily with the 4th uninsured quartile, where counties who are in the 2nd income quartile have the highest overall premature death rate across the board. This difference is significant, for it is clear to see the chain of events that occurs from having money: you are able to buy insurance and therefore your life expectancy is longer due to sufficient medical attention. Conversely, when one doesn’t have as much money, it is harder to obtain medical insurance and therefore one’s risk of premature death increases due to a lack of sufficient medical attention. Tying back to my introduction, this graph illustrates how important insurance is for overall health and therefore it should be accessible to the majority, not just the minority who exists in the top income quartiles.</p>
+<p>###Dimensionality Reduction</p>
+<p>Principal Component Analysis</p>
+<p>Step 1: Prepare the data</p>
+<pre class="r"><code># Correlation matrix with z-scores
+df5 %&gt;% select_if(is.numeric) %&gt;% scale %&gt;% cov %&gt;% round(2)</code></pre>
+<pre><code>##                    uninsured_rate poor_health_report premature_deaths
+## uninsured_rate               1.00               0.79             0.26
+## poor_health_report           0.79               1.00             0.11
+## premature_deaths             0.26               0.11             1.00
+## poor_mental_health           0.64               0.74             0.47
+## primary_care_dr              0.03               0.01            -0.33
+## population                   0.10               0.04            -0.31
+## unemployment_rate            0.48               0.40             0.33
+## med_house_income            -0.66              -0.68            -0.59
+## dr_per_person               -0.24              -0.06            -0.16
+##                    poor_mental_health primary_care_dr population
+## uninsured_rate                   0.64            0.03       0.10
+## poor_health_report               0.74            0.01       0.04
+## premature_deaths                 0.47           -0.33      -0.31
+## poor_mental_health               1.00           -0.13      -0.09
+## primary_care_dr                 -0.13            1.00       0.99
+## population                      -0.09            0.99       1.00
+## unemployment_rate                0.37           -0.03       0.01
+## med_house_income                -0.85            0.15       0.11
+## dr_per_person                   -0.10            0.25       0.15
+##                    unemployment_rate med_house_income dr_per_person
+## uninsured_rate                  0.48            -0.66         -0.24
+## poor_health_report              0.40            -0.68         -0.06
+## premature_deaths                0.33            -0.59         -0.16
+## poor_mental_health              0.37            -0.85         -0.10
+## primary_care_dr                -0.03             0.15          0.25
+## population                      0.01             0.11          0.15
+## unemployment_rate               1.00            -0.38         -0.18
+## med_house_income               -0.38             1.00          0.06
+## dr_per_person                  -0.18             0.06          1.00
+##                    population4tile income4tile
+## uninsured_rate               -0.03       -0.57
+## poor_health_report            0.09       -0.67
+## premature_deaths             -0.63       -0.49
+## poor_mental_health           -0.20       -0.85
+## primary_care_dr               0.64        0.20
+## population                    0.61        0.18
+## unemployment_rate            -0.01       -0.32
+## med_house_income              0.26        0.92
+## dr_per_person                 0.35       -0.10
+##  [ reached getOption(&quot;max.print&quot;) -- omitted 2 rows ]</code></pre>
+<pre class="r"><code># Covariance matrix of df5
+df5 %&gt;% select_if(is.numeric) %&gt;% cov %&gt;% round(2)</code></pre>
+<pre><code>##                    uninsured_rate poor_health_report premature_deaths
+## uninsured_rate              17.65              15.39          1944.49
+## poor_health_report          15.39              21.68           936.33
+## premature_deaths          1944.49             936.33       3105714.29
+## poor_mental_health           0.72               0.92           223.14
+## primary_care_dr             65.80              22.32       -293810.20
+## population              336729.66          145237.59    -446517866.53
+## unemployment_rate            2.39               2.20           692.37
+## med_house_income        -42141.55          -48164.61     -15860122.45
+## dr_per_person                0.00               0.00            -0.06
+##                    poor_mental_health primary_care_dr    population
+## uninsured_rate                   0.72           65.80  3.367297e+05
+## poor_health_report               0.92           22.32  1.452376e+05
+## premature_deaths               223.14      -293810.20 -4.465179e+08
+## poor_mental_health               0.07          -16.86 -1.957889e+04
+## primary_care_dr                -16.86       252060.46  4.049036e+08
+## population                  -19578.89    404903646.46  6.692320e+11
+## unemployment_rate                0.12          -19.61  1.206573e+04
+## med_house_income             -3482.79      1162037.76  1.388850e+09
+## dr_per_person                    0.00            0.03  2.527000e+01
+##                    unemployment_rate med_house_income dr_per_person
+## uninsured_rate                  2.39        -42141.55          0.00
+## poor_health_report              2.20        -48164.61          0.00
+## premature_deaths              692.37     -15860122.45         -0.06
+## poor_mental_health              0.12         -3482.79          0.00
+## primary_care_dr               -19.61       1162037.76          0.03
+## population                  12065.73    1388850259.63         25.27
+## unemployment_rate               1.40         -6900.62          0.00
+## med_house_income            -6900.62     233152738.78          0.18
+## dr_per_person                   0.00             0.18          0.00
+##                    population4tile income4tile
+## uninsured_rate               -0.16       -2.69
+## poor_health_report            0.48       -3.50
+## premature_deaths          -1260.00     -980.41
+## poor_mental_health           -0.06       -0.26
+## primary_care_dr             360.89      114.91
+## population               563132.28   167914.51
+## unemployment_rate            -0.02       -0.42
+## med_house_income           4472.61    15799.14
+## dr_per_person                 0.00        0.00
+##  [ reached getOption(&quot;max.print&quot;) -- omitted 2 rows ]</code></pre>
+<pre class="r"><code># Visualization of relationship between strongly correlated
+# variables Cleaning, normalization and running of princomp()
+# on scaled data
+df5_ &lt;- df5 %&gt;% select(-c(11:15))
+df5_nums &lt;- df5_ %&gt;% select_if(is.numeric) %&gt;% scale
+rownames(df5_nums) &lt;- df5_$county</code></pre>
+<p>Step 2: Perform PCA</p>
+<pre class="r"><code># Use princomp() on prepared values to conduct analysis
+df5_pca &lt;- princomp(df5_nums)
+names(df5_pca)</code></pre>
+<pre><code>## [1] &quot;sdev&quot;     &quot;loadings&quot; &quot;center&quot;   &quot;scale&quot;    &quot;n.obs&quot;    &quot;scores&quot;   &quot;call&quot;</code></pre>
+<pre class="r"><code>summary(df5_pca, loadings = T)</code></pre>
+<pre><code>## Importance of components:
+##                           Comp.1    Comp.2    Comp.3     Comp.4     Comp.5
+## Standard deviation     1.9200882 1.4609089 1.0008147 0.90673270 0.80584412
+## Proportion of Variance 0.4179976 0.2419790 0.1135635 0.09321589 0.07362639
+## Cumulative Proportion  0.4179976 0.6599766 0.7735401 0.86675597 0.94038236
+##                            Comp.6     Comp.7     Comp.8       Comp.9
+## Standard deviation     0.52336073 0.36537272 0.33351632 0.0847982813
+## Proportion of Variance 0.03105515 0.01513574 0.01261147 0.0008152776
+## Cumulative Proportion  0.97143752 0.98657326 0.99918472 1.0000000000
+## 
+## Loadings:
+##                    Comp.1 Comp.2 Comp.3 Comp.4 Comp.5 Comp.6 Comp.7 Comp.8
+## uninsured_rate      0.421  0.203  0.181  0.228         0.717  0.158  0.395
+## poor_health_report  0.414  0.213         0.459  0.104        -0.530 -0.523
+## premature_deaths    0.305 -0.243 -0.112 -0.706 -0.246  0.301 -0.417 -0.104
+## poor_mental_health  0.457        -0.204        -0.215 -0.546 -0.161  0.610
+## primary_care_dr    -0.127  0.636        -0.218 -0.142                     
+## population                 0.637  0.124 -0.218 -0.179                     
+## unemployment_rate   0.304         0.335 -0.358  0.779 -0.218              
+## med_house_income   -0.464         0.248         0.214  0.109 -0.694  0.416
+## dr_per_person      -0.127  0.184 -0.848         0.420  0.186         0.111
+##                    Comp.9
+## uninsured_rate           
+## poor_health_report       
+## premature_deaths         
+## poor_mental_health       
+## primary_care_dr     0.708
+## population         -0.699
+## unemployment_rate        
+## med_house_income         
+## dr_per_person</code></pre>
+<p>Step 3: Choose the number of principal components &amp; make a scree plot</p>
+<pre class="r"><code># Square PCA variables to convert SDs to eigenvalues, find
+# proportion of var explained by each PC
+eigval &lt;- df5_pca$sdev^2
+varprop = round(eigval/sum(eigval), 2)
+
+# Scree plot
+ggplot() + geom_bar(aes(y = varprop, x = 1:9), stat = &quot;identity&quot;) + 
+    xlab(&quot;&quot;) + geom_path(aes(x = 1:9, y = varprop)) + geom_text(aes(x = 1:9, 
+    y = varprop, label = round(varprop, 2)), vjust = 1, col = &quot;white&quot;, 
+    size = 5) + scale_y_continuous(breaks = seq(0, 0.6, 0.2), 
+    labels = scales::percent) + scale_x_continuous(breaks = 1:10)</code></pre>
+<p><img src="public/project/project1_files/figure-html/unnamed-chunk-14-1.png" width="672" style="display: block; margin: auto;" /></p>
+<pre class="r"><code># Calculate cumulative proportion of variance
+cumsum(eigval)/sum(eigval, 2)</code></pre>
+<pre><code>##    Comp.1    Comp.2    Comp.3    Comp.4    Comp.5    Comp.6    Comp.7    Comp.8 
+## 0.3407337 0.5379846 0.6305567 0.7065423 0.7665594 0.7918742 0.8042122 0.8144925 
+##    Comp.9 
+## 0.8151571</code></pre>
+<pre class="r"><code># View eigen values
+eigval</code></pre>
+<pre><code>##      Comp.1      Comp.2      Comp.3      Comp.4      Comp.5      Comp.6 
+## 3.686738768 2.134254717 1.001630020 0.822164189 0.649384744 0.273906456 
+##      Comp.7      Comp.8      Comp.9 
+## 0.133497222 0.111233135 0.007190749</code></pre>
+<p>Step 4: Compute/grab PC scores</p>
+<pre class="r"><code># Plot new PC scores
+pc_plot &lt;- data.frame(County = df5_$county, PC1 = df5_pca$scores[, 
+    1], PC2 = df5_pca$scores[, 2])
+ggplot(pc_plot, aes(PC1, PC2)) + geom_point()</code></pre>
+<p><img src="public/project/project1_files/figure-html/unnamed-chunk-15-1.png" width="672" style="display: block; margin: auto;" /></p>
+<pre class="r"><code># Find the counties with the highest scores on PC1
+df5_pca$scores[, 1:4] %&gt;% as.data.frame %&gt;% top_n(3, Comp.1)</code></pre>
+<pre><code>##           Comp.1    Comp.2    Comp.3   Comp.4
+## CAMERON 4.444125 1.3774688 0.8494873 1.615915
+## HIDALGO 3.920430 1.8996236 1.3644547 1.241271
+## WEBB    4.025462 0.9379138 0.5103203 2.940382</code></pre>
+<pre class="r"><code>df5_ %&gt;% filter(county %in% c(&quot;CAMERON&quot;, &quot;HIDALGO&quot;, &quot;WEBB&quot;))  #low median income, high uninsured rate</code></pre>
+<pre><code>##    county uninsured_rate poor_health_report premature_deaths poor_mental_health
+## 1 CAMERON             30                 32             6300                4.0
+## 2 HIDALGO             30                 29             5600                3.9
+## 3    WEBB             28                 36             6200                4.1
+##   primary_care_dr population unemployment_rate med_house_income dr_per_person
+## 1             200     423163               6.9            36600  0.0004726311
+## 2             385     868707               7.4            37000  0.0004431874
+## 3              93     276652               4.2            42000  0.0003361624</code></pre>
+<pre class="r"><code># Find the counties with the lowest score on PC1
+df5_pca$scores[, 1:4] %&gt;% as.data.frame %&gt;% top_n(-3, Comp.1)</code></pre>
+<pre><code>##              Comp.1    Comp.2     Comp.3     Comp.4
+## COLLIN    -3.796710 1.1089432 -0.5795869 0.35290409
+## DENTON    -3.648907 0.1621410  0.5882430 0.35028351
+## FORT BEND -3.607581 0.5657495  0.2675286 0.07708727</code></pre>
+<pre class="r"><code>df5_ %&gt;% filter(county %in% c(&quot;COLLIN&quot;, &quot;DENTON&quot;, &quot;ROCKWALL&quot;))  #high median income, low uninsured rate</code></pre>
+<pre><code>##     county uninsured_rate poor_health_report premature_deaths
+## 1   COLLIN             11                 14             4200
+## 2   DENTON             12                 12             4400
+## 3 ROCKWALL             13                 13             4500
+##   poor_mental_health primary_care_dr population unemployment_rate
+## 1                3.3             887    1034730               3.4
+## 2                3.1             514     887207               3.3
+## 3                3.2              71     104915               3.3
+##   med_house_income dr_per_person
+## 1            95400  0.0008572285
+## 2            86500  0.0005793462
+## 3            98400  0.0006767383</code></pre>
+<pre class="r"><code># Find the counties with the highest score on PC2
+df5_pca$scores[, 1:4] %&gt;% as.data.frame %&gt;% top_n(3, wt = Comp.2)</code></pre>
+<pre><code>##            Comp.1   Comp.2     Comp.3      Comp.4
+## BEXAR   0.1437202 2.960323 -0.8100800 -0.03430177
+## DALLAS -0.4688029 3.831937  0.1069145 -0.66141856
+## HARRIS -0.6902648 6.542878  1.1852261 -1.98349034</code></pre>
+<pre class="r"><code>df5_ %&gt;% filter(county %in% c(&quot;HARRIS&quot;, &quot;DALLAS&quot;, &quot;BEXAR&quot;))  #high population, high number of primary care doctors, higher doctor/person ratio</code></pre>
+<pre><code>##   county uninsured_rate poor_health_report premature_deaths poor_mental_health
+## 1  BEXAR             17                 24             6900                3.8
+## 2 DALLAS             22                 19             6800                3.5
+## 3 HARRIS             21                 18             6600                3.6
+##   primary_care_dr population unemployment_rate med_house_income dr_per_person
+## 1            1405    2003554               3.5            54200  0.0007012539
+## 2            1753    2635516               3.8            56700  0.0006651449
+## 3            2665    4713325               5.0            58700  0.0005654183</code></pre>
+<pre class="r"><code># Find the counties with the lowest score on PC2
+df5_pca$scores[, 1:4] %&gt;% as.data.frame %&gt;% top_n(3, wt = desc(Comp.2))</code></pre>
+<pre><code>##              Comp.1    Comp.2    Comp.3    Comp.4
+## CORYELL   0.1519427 -1.275735 0.9732780 -0.166193
+## HENDERSON 2.0114332 -1.204267 0.4294122 -1.099360
+## ORANGE    1.1580021 -1.643241 1.8061150 -2.375026</code></pre>
+<pre class="r"><code>df5_ %&gt;% filter(county %in% c(&quot;CORYELL&quot;, &quot;HENDERSON&quot;, &quot;ORANGE&quot;))  #low population, low number of primary care doctors, lower doctor/person ratio</code></pre>
+<pre><code>##      county uninsured_rate poor_health_report premature_deaths
+## 1   CORYELL             13                 18             7600
+## 2 HENDERSON             21                 18            11000
+## 3    ORANGE             14                 16            10900
+##   poor_mental_health primary_care_dr population unemployment_rate
+## 1                3.6              18      75951               4.3
+## 2                3.8              27      82737               4.2
+## 3                3.6              17      83396               6.9
+##   med_house_income dr_per_person
+## 1            51500  0.0002369949
+## 2            44500  0.0003263353
+## 3            57300  0.0002038467</code></pre>
+<p>Step 5: Visualize and interpret retained PCs and scores</p>
+<pre class="r"><code># Plot of PC scores
+df5_pca$loadings[1:8, 1:2] %&gt;% as.data.frame %&gt;% rownames_to_column %&gt;% 
+    ggplot() + geom_hline(aes(yintercept = 0), lty = 2) + geom_vline(aes(xintercept = 0), 
+    lty = 2) + ylab(&quot;PC2&quot;) + xlab(&quot;PC1&quot;) + geom_segment(aes(x = 0, 
+    y = 0, xend = Comp.1, yend = Comp.2), arrow = arrow(), col = &quot;blue&quot;) + 
+    geom_label(aes(x = Comp.1 * 1.1, y = Comp.2 * 1.1, label = rowname))</code></pre>
+<p><img src="public/project/project1_files/figure-html/unnamed-chunk-16-1.png" width="672" style="display: block; margin: auto;" /></p>
+<pre class="r"><code># Biplot of PC scores (for fun!)
+library(factoextra)
+fviz_pca_biplot(df5_pca) + coord_fixed()</code></pre>
+<p><img src="public/project/project1_files/figure-html/unnamed-chunk-16-2.png" width="672" style="display: block; margin: auto;" /></p>
+<p>After analyzing the first two principal components generated by the above principal component analysis, many relationships became clear. First, through comparison analysis of the countries who scored the highest for PC1 and the lowest for PC1, a correlation between median household income and uninsured rates was seen. The countries who scored highest for PC1 had low median incomes and high uninsurance rates, whereas the countries who scored lowest for PC1 had high median incomes and low uninsurance rates. This relationship is corroborated by my summary statistics, my summary table, and all of my plots, for they all showed this clear negative correlation between median income and uninsurance rate. As per my point above, lower income counties do not have high proportions of insured citizens in their populations because individuals cannot afford high premiums with low incomes. Second, through comparison analysis of the countries who scored the highest for PC2 and the lowest for PC2, a correlation between high population, high number of primary care doctors, and high doctor per person proportions was found. The counties Bexar, Harris and Dallas scored highest on PC2 and also had greater populations, higher numbers of primary care doctors and higher doctor per person rates. This makes sense, for 3 of the most densely populated counties would have a need for more doctors. The counties that scored the lowest on PC2 (i.e. the least populated counties) had expectedly small numbers of doctors and very low doctor:person ratios. This interested me, for many medical schools nowadays try to push for graduates to work in rural areas, such as the ones shown in this dataset. It is clear to me now why they advocate for this, for the doctor:person ratio in these areas is lacking in comparison to the more densely populated, urban areas.</p>
+</div>

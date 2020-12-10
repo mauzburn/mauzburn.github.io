@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes"?>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
+  <channel>
+    <title>Projects on Madeleine Ausburn</title>
+    <link>/project/</link>
+    <description>Recent content in Projects on Madeleine Ausburn</description>
+    <generator>Hugo -- gohugo.io</generator>
+    <language>en-US</language>
+    <lastBuildDate>Tue, 01 Dec 2020 00:00:00 +0000</lastBuildDate><atom:link href="/project/index.xml" rel="self" type="application/rss+xml" />
+    <item>
+      <title>Project 1: Exploratory Data Analysis</title>
+      <link>/project/project1/</link>
+      <pubDate>Tue, 01 Dec 2020 00:00:00 +0000</pubDate>
+      
+      <guid>/project/project1/</guid>
+      <description>Data Wrangling and Exploration  Introduction The data that I acquired for this project was found on the University of Wisconsin Population Health Institute’s website, where I honed in on county health rankings. Because I intend on going to medical school and eventually becoming a doctor, I found health data to be of particular interest. More than this, however, I am passionate about educating myself on health disparities seen across different groups in our countries.</description>
+    </item>
+    
+    <item>
+      <title>Project 2</title>
+      <link>/project/project2/</link>
+      <pubDate>Tue, 01 Dec 2020 00:00:00 +0000</pubDate>
+      
+      <guid>/project/project2/</guid>
+      <description>This dataset, obtained through the ‘fivethirtyeight’ database, outlines each case of police killings in the United States during the year of 2015. The variables I chose to include are particular to each victim of said police killings: age, race/ethnicity, armed (whether or not they possessed a weapon at the time of their murder), the percentage of the population that was white, black or hispanic/latino in the area that the shooting took place, median household income of the area, poverty rates of the area, and proportion of college graduates in the area.</description>
+    </item>
+    
+  </channel>
+</rss>

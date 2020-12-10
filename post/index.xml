@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes"?>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
+  <channel>
+    <title>Posts on Madeleine Ausburn</title>
+    <link>/post/</link>
+    <description>Recent content in Posts on Madeleine Ausburn</description>
+    <generator>Hugo -- gohugo.io</generator>
+    <language>en-US</language>
+    <lastBuildDate>Sun, 06 Dec 2020 00:00:00 +0000</lastBuildDate><atom:link href="/post/index.xml" rel="self" type="application/rss+xml" />
+    <item>
+      <title>Using Python and R</title>
+      <link>/post/2020/12/06/using-python-and-r/</link>
+      <pubDate>Sun, 06 Dec 2020 00:00:00 +0000</pubDate>
+      
+      <guid>/post/2020/12/06/using-python-and-r/</guid>
+      <description>Python and R languages in R Studio! Over the course of the semester, I have developed skills in both R and Python and am now able to have them both communicate in R Studio.
+Using R language to evaluate the ‘iris’ dataset Below, I show how one can use R to evaluate a dataset, in this case the ‘iris’ dataset, and use the data to form meaningful plots. # Scatterplot of &amp;#39;iris&amp;#39; dataset comparing petal width to petal length by species library(ggplot2) iris &amp;lt;- iris ggplot(iris, aes(x=Petal.</description>
+    </item>
+    
+    <item>
+      <title>Meet the squad!</title>
+      <link>/post/2020/12/05/meet-the-squad/</link>
+      <pubDate>Sat, 05 Dec 2020 00:00:00 +0000</pubDate>
+      
+      <guid>/post/2020/12/05/meet-the-squad/</guid>
+      <description>  These are my two sheltie pups, Lila and Bowie!
+ </description>
+    </item>
+    
+  </channel>
+</rss>

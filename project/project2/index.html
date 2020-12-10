@@ -1,0 +1,628 @@
+<!DOCTYPE html>
+<html lang="en-US">
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="author" content="Madeleine Ausburn" />
+    
+    <link rel="shortcut icon" type="image/x-icon" href="/img/favicon.ico">
+    <title>Project 2</title>
+    <meta name="generator" content="Hugo 0.79.0" />
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css" integrity="sha384-BVYiiSIFeK1dGmJRAkycuHAHRg32OmUcww7on3RYdg4Va+PmSTsz/K68vbdEjh4u" crossorigin="anonymous">
+    <link rel="stylesheet" type="text/css" href="/css/main.css" />
+    <link rel="stylesheet" type="text/css" href="https://maxcdn.bootstrapcdn.com/font-awesome/4.7.0/css/font-awesome.min.css" />
+    <link rel="stylesheet" type="text/css" href="https://fonts.googleapis.com/css?family=Source+Sans+Pro:200,400,200bold,400old" />
+    
+    <link rel="stylesheet" href="/css/custom_style.css">
+    
+    <!--[if lt IE 9]>
+			<script src="https://oss.maxcdn.com/libs/html5shiv/3.7.0/html5shiv.js"></script>
+			<script src="https://oss.maxcdn.com/libs/respond.js/1.4.2/respond.min.js"></script>
+		<![endif]-->
+
+    
+  </head>
+
+  <body>
+    <div id="wrap">
+      
+      <nav class="navbar navbar-default">
+  <div class="container">
+    <div class="navbar-header">
+      <a class="navbar-brand" href="/"><i class="fa fa-home"></i></a>
+      <button type="button" class="navbar-toggle" data-toggle="collapse" data-target="#navbar">
+        <span class="icon-bar"></span>
+        <span class="icon-bar"></span>
+        <span class="icon-bar"></span>
+      </button>
+    </div>
+    <div class="navbar-collapse collapse" id="navbar">
+      <ul class="nav navbar-nav navbar-right">
+      
+        
+        <li><a href="/post/">BLOG</a></li>
+        
+        <li><a href="/projects/">PROJECTS</a></li>
+        
+        <li><a href="/resume/">RESUME</a></li>
+        
+      
+      </ul>
+    </div>
+  </div>
+</nav>
+
+      <div class="container">
+        <div class="blog-post">
+          <h3>
+            <strong><a href="/project/project2/">Project 2</a></strong>
+          </h3>
+        </div>
+ 
+<div class="blog-title">
+          <h4>
+         December 1, 2020 
+            &nbsp;&nbsp;
+            
+          </h4>
+        </div>
+
+        <div class="panel panel-default">
+          <div class="panel-body">
+            <div class="blogpost">
+              
+<link href="/rmarkdown-libs/anchor-sections/anchor-sections.css" rel="stylesheet" />
+<script src="/rmarkdown-libs/anchor-sections/anchor-sections.js"></script>
+
+
+<p>This dataset, obtained through the ‘fivethirtyeight’ database, outlines each case of police killings in the United States during the year of 2015. The variables I chose to include are particular to each victim of said police killings: age, race/ethnicity, armed (whether or not they possessed a weapon at the time of their murder), the percentage of the population that was white, black or hispanic/latino in the area that the shooting took place, median household income of the area, poverty rates of the area, and proportion of college graduates in the area. In total, there are 448 observations. I chose this dataset because there is a great deal of public discourse regarding the disproportionate brutality that people of color face at the hands of the police in this country, but I wanted to quantify and analyze this phenomenon, among other variables, to visualize this tragic phenomenon.</p>
+<p>##0: Mutation of dataset</p>
+<pre class="r"><code>policebrutality &lt;- read.csv(&quot;policebrutality.csv&quot;)
+library(dplyr)
+
+# Divide age into 3 categories
+df &lt;- policebrutality %&gt;% mutate(age = cut(age, quantile(age, 
+    c(0, 0.25, 0.75, 1)), labels = c(&quot;Young&quot;, &quot;Middle&quot;, &quot;Old&quot;), 
+    include.lowest = TRUE))
+
+# Get rid of gender variable
+df &lt;- df[-c(2)]
+
+# Create binary for armed status
+df$armed &lt;- ifelse(df$armed == &quot;No&quot;, 0, 1)
+
+# Create new column for non-white status
+df1 &lt;- df %&gt;% mutate(share_nonwhite = share_black + share_hispanic)
+df2 &lt;- df1 %&gt;% mutate(majority = ifelse(share_white &gt;= 50, &quot;white&quot;, 
+    &quot;nonwhite&quot;))</code></pre>
+<p>##1: MANOVA, ANOVA, &amp; Post-Hoc testing and analysis</p>
+<pre class="r"><code># MANOVA test
+man &lt;- manova(cbind(h_income, pov, college) ~ raceethnicity, 
+    data = df)
+summary(man)</code></pre>
+<pre><code>##                Df Pillai approx F num Df den Df    Pr(&gt;F)    
+## raceethnicity   4 0.1179   4.5307     12   1329 3.376e-07 ***
+## Residuals     443                                            
+## ---
+## Signif. codes:  0 &#39;***&#39; 0.001 &#39;**&#39; 0.01 &#39;*&#39; 0.05 &#39;.&#39; 0.1 &#39; &#39; 1</code></pre>
+<pre class="r"><code>summary.aov(man)  #all show significance</code></pre>
+<pre><code>##  Response h_income :
+##                Df     Sum Sq    Mean Sq F value   Pr(&gt;F)   
+## raceethnicity   4 6.8156e+09 1703902319  4.1088 0.002794 **
+## Residuals     443 1.8371e+11  414696342                    
+## ---
+## Signif. codes:  0 &#39;***&#39; 0.001 &#39;**&#39; 0.01 &#39;*&#39; 0.05 &#39;.&#39; 0.1 &#39; &#39; 1
+## 
+##  Response pov :
+##                Df Sum Sq Mean Sq F value    Pr(&gt;F)    
+## raceethnicity   4   7683 1920.74  11.788 4.156e-09 ***
+## Residuals     443  72183  162.94                      
+## ---
+## Signif. codes:  0 &#39;***&#39; 0.001 &#39;**&#39; 0.01 &#39;*&#39; 0.05 &#39;.&#39; 0.1 &#39; &#39; 1
+## 
+##  Response college :
+##                Df  Sum Sq  Mean Sq F value  Pr(&gt;F)  
+## raceethnicity   4  0.2659 0.066482  2.6587 0.03235 *
+## Residuals     443 11.0772 0.025005                  
+## ---
+## Signif. codes:  0 &#39;***&#39; 0.001 &#39;**&#39; 0.01 &#39;*&#39; 0.05 &#39;.&#39; 0.1 &#39; &#39; 1</code></pre>
+<pre class="r"><code># ANOVA test
+df1 %&gt;% group_by(raceethnicity) %&gt;% summarize(mean(h_income), 
+    mean(pov), mean(college))</code></pre>
+<pre><code>## # A tibble: 5 x 4
+##   raceethnicity          `mean(h_income)` `mean(pov)` `mean(college)`
+##   &lt;chr&gt;                             &lt;dbl&gt;       &lt;dbl&gt;           &lt;dbl&gt;
+## 1 Asian/Pacific Islander           49482         21.6          0.276 
+## 2 Black                            42609.        25.8          0.218 
+## 3 Hispanic/Latino                  42604.        24.3          0.178 
+## 4 Native American                  29803         38.4          0.0973
+## 5 White                            49825.        17.6          0.236</code></pre>
+<pre class="r"><code># Post hoc t-test
+pairwise.t.test(df$pov, df$raceethnicity, p.adj = &quot;none&quot;)</code></pre>
+<pre><code>## 
+##  Pairwise comparisons using t tests with pooled SD 
+## 
+## data:  df$pov and df$raceethnicity 
+## 
+##                 Asian/Pacific Islander Black   Hispanic/Latino Native American
+## Black           0.31777                -       -               -              
+## Hispanic/Latino 0.52270                0.46183 -               -              
+## Native American 0.02656                0.05205 0.03330         -              
+## White           0.33266                6.9e-09 0.00016         0.00132        
+## 
+## P value adjustment method: none</code></pre>
+<pre class="r"><code>pairwise.t.test(df$h_income, df$raceethnicity, p.adj = &quot;none&quot;)</code></pre>
+<pre><code>## 
+##  Pairwise comparisons using t tests with pooled SD 
+## 
+## data:  df$h_income and df$raceethnicity 
+## 
+##                 Asian/Pacific Islander Black  Hispanic/Latino Native American
+## Black           0.3039                 -      -               -              
+## Hispanic/Latino 0.3201                 0.9988 -               -              
+## Native American 0.1031                 0.2159 0.2228          -              
+## White           0.9584                 0.0012 0.0113          0.0518         
+## 
+## P value adjustment method: none</code></pre>
+<pre class="r"><code>pairwise.t.test(df$college, df$raceethnicity, p.adj = &quot;none&quot;)</code></pre>
+<pre><code>## 
+##  Pairwise comparisons using t tests with pooled SD 
+## 
+## data:  df$college and df$raceethnicity 
+## 
+##                 Asian/Pacific Islander Black Hispanic/Latino Native American
+## Black           0.263                  -     -               -              
+## Hispanic/Latino 0.068                  0.093 -               -              
+## Native American 0.056                  0.133 0.322           -              
+## White           0.429                  0.302 0.009           0.083          
+## 
+## P value adjustment method: none</code></pre>
+<pre class="r"><code># Probability of at least one type I error
+1 - (0.95)^34</code></pre>
+<pre><code>## [1] 0.8251754</code></pre>
+<pre class="r"><code># Bonferroni correction
+0.05/34  #after correcting p value, the only variable that has significant effect is poverty</code></pre>
+<pre><code>## [1] 0.001470588</code></pre>
+<pre class="r"><code>### MANOVA assumptions Test multivariate normality for each
+### group (null: assumption met)
+library(rstatix)
+group &lt;- df$raceethnicity
+DVs &lt;- df %&gt;% select(h_income, pov, college)
+
+# Test multivariate normality for each group (null:
+# assumption met)
+sapply(split(DVs, group), mshapiro_test)</code></pre>
+<pre><code>##           Asian/Pacific Islander Black        Hispanic/Latino Native American
+## statistic 0.6770019              0.7563136    0.8910099       0.6297763      
+## p.value   0.0004642318           1.401757e-13 2.885375e-05    0.001240726    
+##           White       
+## statistic 0.8906486   
+## p.value   5.122948e-12</code></pre>
+<p>In the MANOVA test conducted, the numeric variables of poverty rates, median household income, and percent college education were tested to evaluate whether or not there was a mean difference across the levels of the categorical variable, race/ethnicity. In this MANOVA test, each numeric variable yielded a significant result, so univariate ANOVA tests were performed for each numeric variable to show the mean difference across different race/ethnicity groups. After performing the post-hoc t-tests, as well, the total number of tests performed came out to a total of 34. This means that the probability of at least one type I error is 0.825, which makes sense considering the size of this dataset, and the bonferroni correction yielded a new p-value of 0.0015. With this new p-value, only the poverty variable had a significant effect with race/ethnicity. When the MANOVA assumptions were tested against this model, it was found that the multivariate normality for every numeric variable had a p-value of less than 0.05, therefore violating the assumption of multivariate normality.</p>
+<p>##2: Randomization test: mean difference</p>
+<pre class="r"><code>df2 %&gt;% group_by(majority) %&gt;% summarize(means = mean(pov)) %&gt;% 
+    summarize(mean_diff = diff(means))</code></pre>
+<pre><code>## # A tibble: 1 x 1
+##   mean_diff
+##       &lt;dbl&gt;
+## 1     -11.9</code></pre>
+<pre class="r"><code>rand_dist &lt;- vector()
+
+for (i in 1:5000) {
+    new &lt;- data.frame(pov = sample(df2$pov), majority = df2$majority)
+    rand_dist[i] &lt;- mean(new[new$majority == &quot;white&quot;, ]$pov) - 
+        mean(new[new$majority == &quot;nonwhite&quot;, ]$pov)
+}
+
+{
+    hist(rand_dist, main = &quot;&quot;, ylab = &quot;&quot;)
+    abline(v = c(-11.93554, 11.93554), col = &quot;red&quot;)
+}</code></pre>
+<p><img src="/project/project2_files/figure-html/unnamed-chunk-3-1.png" width="672" style="display: block; margin: auto;" /></p>
+<pre class="r"><code>mean(rand_dist &gt; 11.93554 | rand_dist &lt; -11.93554)</code></pre>
+<pre><code>## [1] 0</code></pre>
+<p>For this data, a mean difference randomization test was conducted between the variables of majority, indicating if the majority demographic of the area the killing took place in was white or non-white, and poverty rates. The null hypothesis is that there will be no difference in poverty rates between majority white and majority non-white areas. The alternative hypothesis is that there will be a significant difference in poverty rates between areas that are majority white and majority non-white. To visualize the results of this randomization test, a histogram was created and, as seen in the plot, there is a very normal distribution. The test statistic yielded a value of 0, which is an estimation that indicates that the actual p-value is incredibly small, therefore allowing us to reject the null hypothesis and state that there is a statistically significant difference in poverty rates between areas that are majority white and majority non-white.</p>
+<p>##3: Linear regression model: poverty rates by college graduation rates and racial/ethnic majority</p>
+<pre class="r"><code># Mean center numeric variable
+df2$college_c &lt;- df2$college - mean(df2$college)
+
+# Create linear regression model
+fit &lt;- lm(pov ~ college_c * majority, data = df2)
+summary(fit)</code></pre>
+<pre><code>## 
+## Call:
+## lm(formula = pov ~ college_c * majority, data = df2)
+## 
+## Residuals:
+##     Min      1Q  Median      3Q     Max 
+## -23.385  -7.099  -1.558   5.533  58.460 
+## 
+## Coefficients:
+##                         Estimate Std. Error t value Pr(&gt;|t|)    
+## (Intercept)              24.1859     0.8174  29.588  &lt; 2e-16 ***
+## college_c               -63.5204     6.1185 -10.382  &lt; 2e-16 ***
+## majoritywhite            -7.6295     1.0807  -7.060 6.46e-12 ***
+## college_c:majoritywhite  47.8021     7.2965   6.551 1.58e-10 ***
+## ---
+## Signif. codes:  0 &#39;***&#39; 0.001 &#39;**&#39; 0.01 &#39;*&#39; 0.05 &#39;.&#39; 0.1 &#39; &#39; 1
+## 
+## Residual standard error: 10.62 on 444 degrees of freedom
+## Multiple R-squared:  0.3727, Adjusted R-squared:  0.3685 
+## F-statistic: 87.93 on 3 and 444 DF,  p-value: &lt; 2.2e-16</code></pre>
+<pre class="r"><code>library(ggplot2)
+df2 %&gt;% ggplot(aes(college_c, pov, color = majority)) + geom_point() + 
+    geom_smooth(method = &quot;lm&quot;, se = F)</code></pre>
+<p><img src="/project/project2_files/figure-html/unnamed-chunk-4-1.png" width="672" style="display: block; margin: auto;" /></p>
+<pre class="r"><code># Assess homoskedasticity assumption
+resids &lt;- fit$residuals
+fitvals &lt;- fit$fitted.values
+ggplot() + geom_point(aes(fitvals, resids)) + geom_hline(yintercept = 0, 
+    col = &quot;red&quot;)</code></pre>
+<p><img src="/project/project2_files/figure-html/unnamed-chunk-4-2.png" width="672" style="display: block; margin: auto;" /></p>
+<p>After building and generating a summary of the linear regression model, we can conclude that, first, when controlling for college, non-white majority areas have a significantly lower poverty rates than white majority areas. Additionally, when controlling for race/ethnicity majority, college attendance rates have a significantly negative impact on poverty rates (meaning that the more college-educated the area is, the less poverty there will be). Lastly, the interaction between college attendance rates and race/ethnicity majority is significant, showing that the effect of racial/ethnic majority on poverty rates depends on college attendance rates. One interesting thing to note in the generated scatterplot is that despite being at the same, low levels of college education (x=-0.2), predominantly white areas have almost half of the poverty rates than do predominantly non-white areas.</p>
+<pre class="r"><code>library(sandwich)
+library(lmtest)
+
+summary(fit)$coef</code></pre>
+<pre><code>##                           Estimate Std. Error    t value      Pr(&gt;|t|)
+## (Intercept)              24.185932  0.8174178  29.588215 4.544324e-107
+## college_c               -63.520406  6.1184754 -10.381738  9.453413e-23
+## majoritywhite            -7.629512  1.0806939  -7.059827  6.461982e-12
+## college_c:majoritywhite  47.802150  7.2964886   6.551391  1.581745e-10</code></pre>
+<pre class="r"><code>coeftest(fit, vcov = vcovHC(fit))  #regression after adjusting standard errors </code></pre>
+<pre><code>## 
+## t test of coefficients:
+## 
+##                          Estimate Std. Error t value  Pr(&gt;|t|)    
+## (Intercept)              24.18593    0.88267 27.4007 &lt; 2.2e-16 ***
+## college_c               -63.52041    6.69543 -9.4871 &lt; 2.2e-16 ***
+## majoritywhite            -7.62951    1.05716 -7.2170 2.318e-12 ***
+## college_c:majoritywhite  47.80215    7.85588  6.0849 2.521e-09 ***
+## ---
+## Signif. codes:  0 &#39;***&#39; 0.001 &#39;**&#39; 0.01 &#39;*&#39; 0.05 &#39;.&#39; 0.1 &#39; &#39; 1</code></pre>
+<pre class="r"><code># Assess linearity assumption
+ggplot() + geom_qq(aes(sample = resids)) + geom_qq()</code></pre>
+<p><img src="/project/project2_files/figure-html/unnamed-chunk-5-1.png" width="672" style="display: block; margin: auto;" /></p>
+<pre class="r"><code># Assess normality assumption
+ggplot() + geom_histogram(aes(resids), bins = 10)</code></pre>
+<p><img src="/project/project2_files/figure-html/unnamed-chunk-5-2.png" width="672" style="display: block; margin: auto;" /></p>
+<pre class="r"><code># Proportion of variance explained by model
+summary(fit)</code></pre>
+<pre><code>## 
+## Call:
+## lm(formula = pov ~ college_c * majority, data = df2)
+## 
+## Residuals:
+##     Min      1Q  Median      3Q     Max 
+## -23.385  -7.099  -1.558   5.533  58.460 
+## 
+## Coefficients:
+##                         Estimate Std. Error t value Pr(&gt;|t|)    
+## (Intercept)              24.1859     0.8174  29.588  &lt; 2e-16 ***
+## college_c               -63.5204     6.1185 -10.382  &lt; 2e-16 ***
+## majoritywhite            -7.6295     1.0807  -7.060 6.46e-12 ***
+## college_c:majoritywhite  47.8021     7.2965   6.551 1.58e-10 ***
+## ---
+## Signif. codes:  0 &#39;***&#39; 0.001 &#39;**&#39; 0.01 &#39;*&#39; 0.05 &#39;.&#39; 0.1 &#39; &#39; 1
+## 
+## Residual standard error: 10.62 on 444 degrees of freedom
+## Multiple R-squared:  0.3727, Adjusted R-squared:  0.3685 
+## F-statistic: 87.93 on 3 and 444 DF,  p-value: &lt; 2.2e-16</code></pre>
+<pre class="r"><code>set.seed(777)
+bogus &lt;- data.frame(y = df2$pov, replicate(5, rnorm(448)))
+head(bogus, 3)</code></pre>
+<pre><code>##      y         X1         X2         X3         X4         X5
+## 1 14.1  0.4897862 -0.3598166 -0.5088484  0.1670402  1.5138892
+## 2 28.8 -0.3985414 -0.2521322 -2.3475810  1.3651658 -0.6168993
+## 3 14.6  0.5108363 -1.2563999  1.0567771 -2.1000754 -1.8752365</code></pre>
+<pre class="r"><code>summary(lm(y ~ ., data = bogus))</code></pre>
+<pre><code>## 
+## Call:
+## lm(formula = y ~ ., data = bogus)
+## 
+## Residuals:
+##     Min      1Q  Median      3Q     Max 
+## -20.517 -10.312  -2.901   8.259  55.190 
+## 
+## Coefficients:
+##             Estimate Std. Error t value Pr(&gt;|t|)    
+## (Intercept) 21.36276    0.63212  33.795   &lt;2e-16 ***
+## X1          -0.45287    0.61529  -0.736   0.4621    
+## X2          -0.02084    0.64526  -0.032   0.9742    
+## X3          -1.74501    0.68206  -2.558   0.0108 *  
+## X4          -0.15217    0.62794  -0.242   0.8086    
+## X5           0.04528    0.65917   0.069   0.9453    
+## ---
+## Signif. codes:  0 &#39;***&#39; 0.001 &#39;**&#39; 0.01 &#39;*&#39; 0.05 &#39;.&#39; 0.1 &#39; &#39; 1
+## 
+## Residual standard error: 13.34 on 442 degrees of freedom
+## Multiple R-squared:  0.01552,    Adjusted R-squared:  0.004382 
+## F-statistic: 1.393 on 5 and 442 DF,  p-value: 0.2254</code></pre>
+<p>In terms of checking assumptions, this model seemed to pass the linearity, normality, and homoskedasticity assumptions pretty well. Once the regression results were recomputed with robust standard errors, all of the variables, including the interaction, became significant. This was a change from the original calculation of the SEs, for none of the variables in that calculation were significant. The proportion of the variation in the outcome that this model predicts is about .3685. When adjusted, however, the proportion is reduced drastically to 0.004.</p>
+<p>##4: Regression model with bootstrapped SEs</p>
+<pre class="r"><code># Bootstrap residuals
+fit &lt;- lm(pov ~ college_c * majority, data = df2)
+resids &lt;- fit$residuals
+fitted &lt;- fit$fitted.values
+
+resid_resamp &lt;- replicate(5000, {
+    new_resids &lt;- sample(resids, replace = TRUE)
+    newdat &lt;- df2
+    newdat$new_y &lt;- fitted + new_resids
+    fit &lt;- lm(new_y ~ college_c * majority, data = newdat)
+    coef(fit)
+})
+
+# Bootstrapped SEs (resampling residuals)
+resid_resamp %&gt;% t %&gt;% as.data.frame %&gt;% summarize_all(sd)</code></pre>
+<pre><code>##   (Intercept) college_c majoritywhite college_c:majoritywhite
+## 1   0.8246932  6.089638      1.083132                 7.36705</code></pre>
+<p>As compared to the original and robust standard errors, the bootstrap standard error for the college variable is the lowest (6.110), the boostrapped majoritywhite variable (1.073) is lower than the original, but higher than the robust, and the interaction between college and majority white’s bootstrapped SE (7.306) was higher than the original, but lower than the robust. I posit that the reason for such small, if any, differences between the different SE calculations is due to the large size of this dataset.</p>
+<p>##5: Logistic regression model predicting binary variable</p>
+<pre class="r"><code># Binary variable: Black or NonBlack
+df2$arm &lt;- ifelse(df2$armed == 1, &quot;Armed&quot;, &quot;Unarmed&quot;)
+df2$race &lt;- ifelse(df2$raceethnicity == &quot;Black&quot;, 1, 0)
+df2$race1 &lt;- ifelse(df2$race == 1, &quot;Black&quot;, &quot;NonBlack&quot;)
+
+fit1 &lt;- glm(race ~ pov + h_income + share_white, data = df2, 
+    family = binomial(link = &quot;logit&quot;))
+coeftest(fit1)</code></pre>
+<pre><code>## 
+## z test of coefficients:
+## 
+##                Estimate  Std. Error z value  Pr(&gt;|z|)    
+## (Intercept) -5.8885e-01  6.9668e-01 -0.8452    0.3980    
+## pov          1.9675e-02  1.3138e-02  1.4975    0.1343    
+## h_income     7.8428e-06  8.1674e-06  0.9603    0.3369    
+## share_white -2.2647e-02  4.3287e-03 -5.2319 1.678e-07 ***
+## ---
+## Signif. codes:  0 &#39;***&#39; 0.001 &#39;**&#39; 0.01 &#39;*&#39; 0.05 &#39;.&#39; 0.1 &#39; &#39; 1</code></pre>
+<pre class="r"><code>exp(coef(fit1))</code></pre>
+<pre><code>## (Intercept)         pov    h_income share_white 
+##   0.5549671   1.0198698   1.0000078   0.9776073</code></pre>
+<p>In the regression model using the binary variable, race (black or non-black), the one significant result was between race and the share of the population that is white, with a p-value of 1.678e-07. The coefficient estimate for this relationship indicates that, when controlling for poverty rate and median household income, black people in this dataset live in areas with shares of white people at a rate of 0.9776 times that of non-black people. The other coefficients indicate that poverty rates are 1.0199 times higher for black individuals than for non-black individuals, median household income is approximately the same (1) between the black and non-black individuals in this dataset, and the intercept indicates that the number of black people in this dataset is 0.5549 times the number of non-black individuals.</p>
+<pre class="r"><code># Confusion matrix
+prob &lt;- predict(fit1, type = &quot;response&quot;)
+pred &lt;- ifelse(prob &gt; 0.5, 1, 0)
+table(prediction = pred, truth = df2$race) %&gt;% addmargins</code></pre>
+<pre><code>##           truth
+## prediction   0   1 Sum
+##        0   284  96 380
+##        1    31  37  68
+##        Sum 315 133 448</code></pre>
+<pre class="r"><code>(284 + 37)/448  #Accuracy</code></pre>
+<pre><code>## [1] 0.7165179</code></pre>
+<pre class="r"><code>37/133  #TPR(sensitivity)</code></pre>
+<pre><code>## [1] 0.2781955</code></pre>
+<pre class="r"><code>284/315  #TNR (specificity)</code></pre>
+<pre><code>## [1] 0.9015873</code></pre>
+<pre class="r"><code>37/68  #PPV (precision)</code></pre>
+<pre><code>## [1] 0.5441176</code></pre>
+<p>The accuracy of this model was 0.717, its sensitivity (TPR) was 0.278, its specificity (TNR) was 0.902, and its precision (PPV) was 0.544. As one can see, the accuracy and particularly the specificity of this model were relatively high, meaning that the model was moderately accurate and very specific. The sensitivity and precision, however, were both low values, which indicates that the model was not well fit in terms of predicting correct positives, nor was it very good at predicting the real proportion of the data classified as “black” who actually were.</p>
+<pre class="r"><code>df2$logit &lt;- predict(fit1, type = &quot;link&quot;)
+df2 %&gt;% ggplot(aes(logit, color = race1, fill = race1)) + geom_density(alpha = 0.4) + 
+    theme(legend.position = c(0.85, 0.85)) + geom_vline(xintercept = 0) + 
+    xlab(&quot;logit (log-odds)&quot;) + geom_rug(aes(logit, color = race1))</code></pre>
+<p><img src="/project/project2_files/figure-html/unnamed-chunk-9-1.png" width="672" style="display: block; margin: auto;" /></p>
+<pre class="r"><code>library(plotROC)
+ROCplot &lt;- ggplot(df2) + geom_roc(aes(d = race, m = prob), n.cuts = 0)
+ROCplot</code></pre>
+<p><img src="/project/project2_files/figure-html/unnamed-chunk-9-2.png" width="672" style="display: block; margin: auto;" /></p>
+<pre class="r"><code>calc_auc(ROCplot)</code></pre>
+<pre><code>##   PANEL group       AUC
+## 1     1    -1 0.7105741</code></pre>
+<p>The calculated AUC for this model was 0.711, which can be classified as “fair”, and can be seen in the ROC plot, for the line cuts across the graph with only a slight curve rather than the ideal, high-reaching ROC plots.</p>
+<pre class="r"><code>## Class Diagnostics Function
+class_diag &lt;- function(probs, truth) {
+    # CONFUSION MATRIX: CALCULATE ACCURACY, TPR, TNR, PPV
+    tab &lt;- table(factor(probs &gt; 0.5, levels = c(&quot;FALSE&quot;, &quot;TRUE&quot;)), 
+        truth)
+    acc = sum(diag(tab))/sum(tab)
+    sens = tab[2, 2]/colSums(tab)[2]
+    spec = tab[1, 1]/colSums(tab)[1]
+    ppv = tab[2, 2]/rowSums(tab)[2]
+    f1 = 2 * (sens * ppv)/(sens + ppv)
+    
+    if (is.numeric(truth) == FALSE &amp; is.logical(truth) == FALSE) 
+        truth &lt;- as.numeric(truth) - 1
+    
+    # CALCULATE EXACT AUC
+    ord &lt;- order(probs, decreasing = TRUE)
+    probs &lt;- probs[ord]
+    truth &lt;- truth[ord]
+    
+    TPR = cumsum(truth)/max(1, sum(truth))
+    FPR = cumsum(!truth)/max(1, sum(!truth))
+    
+    dup &lt;- c(probs[-1] &gt;= probs[-length(probs)], FALSE)
+    TPR &lt;- c(0, TPR[!dup], 1)
+    FPR &lt;- c(0, FPR[!dup], 1)
+    n &lt;- length(TPR)
+    auc &lt;- sum(((TPR[-1] + TPR[-n])/2) * (FPR[-1] - FPR[-n]))
+    
+    data.frame(acc, sens, spec, ppv, f1, auc)
+}</code></pre>
+<p>##6: Logistic regression model using binary variable &amp; all predictors</p>
+<pre class="r"><code>fit2 &lt;- glm(race ~ age + arm + majority + pov + h_income + college, 
+    data = df2, family = &quot;binomial&quot;)
+coeftest(fit2)</code></pre>
+<pre><code>## 
+## z test of coefficients:
+## 
+##                  Estimate  Std. Error z value  Pr(&gt;|z|)    
+## (Intercept)   -8.6561e-01  6.8733e-01 -1.2594  0.207893    
+## ageMiddle     -6.2580e-02  2.5743e-01 -0.2431  0.807931    
+## ageOld        -8.9610e-01  3.4996e-01 -2.5606  0.010449 *  
+## armUnarmed     3.6296e-01  2.7031e-01  1.3427  0.179358    
+## majoritywhite -1.2850e+00  2.6172e-01 -4.9098 9.118e-07 ***
+## pov            2.1499e-02  1.3084e-02  1.6432  0.100351    
+## h_income      -6.7351e-06  9.9852e-06 -0.6745  0.499985    
+## college        2.5292e+00  9.5393e-01  2.6514  0.008017 ** 
+## ---
+## Signif. codes:  0 &#39;***&#39; 0.001 &#39;**&#39; 0.01 &#39;*&#39; 0.05 &#39;.&#39; 0.1 &#39; &#39; 1</code></pre>
+<pre class="r"><code>exp(coef(fit2)) %&gt;% t</code></pre>
+<pre><code>##      (Intercept) ageMiddle    ageOld armUnarmed majoritywhite      pov
+## [1,]   0.4207955  0.939338 0.4081578   1.437579     0.2766586 1.021732
+##       h_income  college
+## [1,] 0.9999933 12.54386</code></pre>
+<pre class="r"><code># Confusion matrix
+prob &lt;- predict(fit2, type = &quot;response&quot;)
+pred &lt;- ifelse(prob &gt; 0.5, 1, 0)
+table(prediction = pred, truth = df2$race) %&gt;% addmargins</code></pre>
+<pre><code>##           truth
+## prediction   0   1 Sum
+##        0   291  94 385
+##        1    24  39  63
+##        Sum 315 133 448</code></pre>
+<pre class="r"><code>(291 + 39)/448  #Accuracy</code></pre>
+<pre><code>## [1] 0.7366071</code></pre>
+<pre class="r"><code>39/133  #TPR(sensitivity)</code></pre>
+<pre><code>## [1] 0.2932331</code></pre>
+<pre class="r"><code>291/315  #TNR (specificity)</code></pre>
+<pre><code>## [1] 0.9238095</code></pre>
+<pre class="r"><code>39/63  #PPV (precision)</code></pre>
+<pre><code>## [1] 0.6190476</code></pre>
+<pre class="r"><code>ROCplot &lt;- ggplot(df2) + geom_roc(aes(d = race, m = prob), n.cuts = 0)
+calc_auc(ROCplot)</code></pre>
+<pre><code>##   PANEL group       AUC
+## 1     1    -1 0.7305168</code></pre>
+<p>For the model created with all of the variables included, the accuracy was 0.737, the sensitivity was 0.293, the specificity was 0.924, and the precision was 0.619. As compared to the last model with only selected variables, this model had an increase, albeit modest, in accuracy, sensitivity, specificity and precision indicating that this model is a better fit.
+One interesting thing to note here is that there is no significant difference between if the individual was armed or unarmed in this dataset, in other words their death was not determined by their possession of a weapon. I found this to be of particular importance because many times that police kill a civillian, the excuse is that the civillian had a weapon, but this data discredits that statement.</p>
+<pre class="r"><code>## K-fold CV on full model
+set.seed(1234)
+k = 10
+data &lt;- df2[sample(nrow(df2)), ]
+folds &lt;- cut(seq(1:nrow(df2)), breaks = k, labels = F)
+
+diags &lt;- NULL
+for (i in 1:k) {
+    train &lt;- data[folds != i, ]
+    test &lt;- data[folds == i, ]
+    truth &lt;- test$race
+    
+    fit2 &lt;- glm(race ~ age + arm + majority + pov + h_income + 
+        college, data = train, family = &quot;binomial&quot;)
+    probs &lt;- predict(fit2, newdata = test, type = &quot;response&quot;)
+    
+    diags &lt;- rbind(diags, class_diag(probs, truth))
+}
+diags %&gt;% summarize_all(mean)</code></pre>
+<pre><code>##         acc      sens      spec       ppv       f1       auc
+## 1 0.7211616 0.2690232 0.9153442 0.5782143 0.359198 0.7136119</code></pre>
+<p>The 10-fold CV test using the same model generated an accuracy of 0.721, a sensitivity of 0.269, a specificity of 0.915, a precision of 0.578, and an AUC of 0.714. This AUC was lower than the in-sample AUC, which was 0.731, but still similar. As compared to the in-sample classification diagnostics, the out-of-sample values were lower in all categories, but only by a slim margin, which does not really tell us which model is a better fit.</p>
+<pre class="r"><code># Lasso on data to find best variables
+library(glmnet)
+y &lt;- as.matrix(df2$race)
+x &lt;- model.matrix(race ~ age + arm + majority + pov + h_income + 
+    college, data = df2)[, -1]
+
+x &lt;- scale(x)
+head(x)</code></pre>
+<pre><code>##    ageMiddle     ageOld armUnarmed majoritywhite        pov    h_income
+## 1 -1.0352181 -0.5492274  1.8633926      0.917463 -0.5367271  0.23901177
+## 2 -1.0352181 -0.5492274  1.8633926      0.917463  0.5630116 -0.89417001
+## 3 -1.0352181 -0.5492274  1.8633926      0.917463 -0.4993210 -0.05170663
+## 4 -1.0352181 -0.5492274 -0.5354577     -1.087529 -0.7162763  0.09021355
+## 5  0.9638238 -0.5492274  1.8633926      0.917463 -1.4494354  1.08268608
+## 6  0.9638238 -0.5492274  1.8633926     -1.087529  2.7475264 -1.23996120
+##      college
+## 1 -0.3340188
+## 2 -0.6925089
+## 3 -0.4670844
+## 4 -1.0771277
+## 5  1.1439853
+## 6 -0.7455359</code></pre>
+<pre class="r"><code>cv &lt;- cv.glmnet(x, y, family = &quot;binomial&quot;)
+lasso1 &lt;- glmnet(x, y, lambda = cv$lambda.1se)
+
+coef(lasso1)</code></pre>
+<pre><code>## 8 x 1 sparse Matrix of class &quot;dgCMatrix&quot;
+##                          s0
+## (Intercept)    0.2968750000
+## ageMiddle      .           
+## ageOld         .           
+## armUnarmed     .           
+## majoritywhite -0.0644497992
+## pov            0.0005756502
+## h_income       .           
+## college        .</code></pre>
+<p>The variables that are retained after performing LASSO on the model are race/ethnicity majority and poverty rates.</p>
+<pre class="r"><code>## CV on variables that lasso selected
+set.seed(1234)
+k = 10
+
+data1 &lt;- df2[sample(nrow(df2)), ]
+folds &lt;- cut(seq(1:nrow(df2)), breaks = k, labels = F)
+diags &lt;- NULL
+for (i in 1:k) {
+    
+    train &lt;- data1[folds != i, ]
+    test &lt;- data1[folds == i, ]
+    truth &lt;- test$race
+    
+    fit &lt;- glm(race ~ pov + majority, data = train, family = &quot;binomial&quot;)
+    probs &lt;- predict(fit, newdata = test, type = &quot;response&quot;)
+    
+    diags &lt;- rbind(diags, class_diag(probs, truth))
+}
+diags %&gt;% summarize_all(mean)</code></pre>
+<pre><code>##         acc      sens      spec       ppv  f1       auc
+## 1 0.7212121 0.1888828 0.9530202 0.6095238 NaN 0.6960086</code></pre>
+<p>However, after the 10-fold CV using only the variables the LASSO selected was conducted, the AUC was much lower than that of the regressions above, which was 0.731 (in-sample) and 0.714 (out-of-sample). This means that there was not significant over-fitting in the more complex model with all of the variables.</p>
+
+            
+        <hr>         <div class="related-posts">
+                <h5>Related Posts</h5>
+                
+              </div> 
+            </div>
+          </div>
+
+   <hr>  <div class="disqus">
+  <div id="disqus_thread"></div>
+  <script type="text/javascript">
+
+    (function() {
+      
+      
+      if (window.location.hostname == "localhost")
+        return;
+
+      var disqus_shortname = '';
+      var dsq = document.createElement('script'); dsq.type = 'text/javascript'; dsq.async = true;
+      dsq.src = '//' + disqus_shortname + '.disqus.com/embed.js';
+      (document.getElementsByTagName('head')[0] || document.getElementsByTagName('body')[0]).appendChild(dsq);
+    })();
+  </script>
+  <noscript>Please enable JavaScript to view the <a href="http://disqus.com/?ref_noscript">comments powered by Disqus.</a></noscript>
+  <a href="http://disqus.com/" class="dsq-brlink">comments powered by <span class="logo-disqus">Disqus</span></a>
+</div> 
+        </div>
+      </div>
+    </div>
+
+    
+    <footer>
+  <div id="footer">
+    <div class="container">
+      <p class="text-muted">&copy; All rights reserved. Powered by <a href="https://gohugo.io/">Hugo</a> and
+      <a href="http://www.github.com/nurlansu/hugo-sustain/">sustain</a> with ♥</p>
+    </div>
+  </div>
+</footer>
+<div class="footer"></div>
+
+
+<script src="https://ajax.googleapis.com/ajax/libs/jquery/1.11.3/jquery.min.js"></script>
+
+<script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/js/bootstrap.min.js" integrity="sha384-Tc5IQib027qvyjSMfHjOMaLkfuWVxZxUPnCJA7l2mCWNIpG9mGCD8wGNIcPD7Txa" crossorigin="anonymous"></script>
+<script src="/js/docs.min.js"></script>
+<script src="/js/main.js"></script>
+
+<script src="/js/ie10-viewport-bug-workaround.js"></script>
+
+
+    
+  </body>
+</html>

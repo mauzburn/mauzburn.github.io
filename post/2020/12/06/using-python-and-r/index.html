@@ -1,0 +1,134 @@
+---
+title: Using Python and R
+author: Madeleine Ausburn
+date: '2020-12-06'
+slug: using-python-and-r
+categories: []
+tags: []
+description: ''
+---
+
+<link href="index_files/anchor-sections/anchor-sections.css" rel="stylesheet" />
+<script src="index_files/anchor-sections/anchor-sections.js"></script>
+
+
+<div id="python-and-r-languages-in-r-studio" class="section level1">
+<h1>Python and R languages in R Studio!</h1>
+<p>Over the course of the semester, I have developed skills in both R and Python and am now able to have them both communicate in R Studio.</p>
+<p><img src="/Users/madeleineausburn/Desktop/Website/website/content/post/2020-12-06-using-python-and-r/index_files/tree.jpg" /></p>
+<div id="using-r-language-to-evaluate-the-iris-dataset" class="section level2">
+<h2>Using R language to evaluate the ‘iris’ dataset</h2>
+<div id="below-i-show-how-one-can-use-r-to-evaluate-a-dataset-in-this-case-the-iris-dataset-and-use-the-data-to-form-meaningful-plots." class="section level3">
+<h3>Below, I show how one can use R to evaluate a dataset, in this case the ‘iris’ dataset, and use the data to form meaningful plots.</h3>
+<pre class="r"><code># Scatterplot of &#39;iris&#39; dataset comparing petal width to petal length by species
+library(ggplot2)
+iris &lt;- iris
+  ggplot(iris, aes(x=Petal.Width, y=Petal.Length, fill=Species)) +
+    geom_point(alpha=0.5, shape=21, color=&quot;black&quot;) +
+    scale_size() +
+    theme(legend.position=&quot;bottom&quot;) +
+    ylab(&quot;Petal Length&quot;) +
+    xlab(&quot;Petal Width&quot;) +
+    theme(legend.position = &quot;right&quot;)</code></pre>
+<p><img src="index_files/figure-html/unnamed-chunk-1-1.png" width="672" /></p>
+<pre class="r"><code>#Here, we can filter the dataset to look at the sepal lengths of only one species using R and &#39;dplyr&#39; functions
+  library(dplyr)</code></pre>
+<pre><code>## 
+## Attaching package: &#39;dplyr&#39;</code></pre>
+<pre><code>## The following objects are masked from &#39;package:stats&#39;:
+## 
+##     filter, lag</code></pre>
+<pre><code>## The following objects are masked from &#39;package:base&#39;:
+## 
+##     intersect, setdiff, setequal, union</code></pre>
+<pre class="r"><code>  iris %&gt;% select(Sepal.Length, Species) %&gt;% filter(Species == &#39;versicolor&#39;) %&gt;% head(3)</code></pre>
+<pre><code>##   Sepal.Length    Species
+## 1          7.0 versicolor
+## 2          6.4 versicolor
+## 3          6.9 versicolor</code></pre>
+</div>
+</div>
+<div id="using-python-language-in-r-studio-to-perform-simple-tasks" class="section level2">
+<h2>Using Python language in R Studio to perform simple tasks</h2>
+<div id="here-i-show-some-basic-functions-that-we-can-perform-using-python." class="section level3">
+<h3>Here, I show some basic functions that we can perform using Python.</h3>
+<pre class="python"><code>import re
+string=&quot;Protect our trees!&quot;
+re.sub(r&quot;Protect.* our&quot;,&quot;Plant more&quot;,string)</code></pre>
+<pre><code>## &#39;Plant more trees!&#39;</code></pre>
+</div>
+<div id="we-can-evaluate-datasets-in-python-like-we-did-above-in-r-just-using-different-language-here-i-show-how-we-can-generate-similar-plots-and-perform-similar-evaluations-in-python-as-in-r-on-the-iris-dataset." class="section level3">
+<h3>We can evaluate datasets in Python like we did above in R, just using different language! Here, I show how we can generate similar plots and perform similar evaluations in Python as in R on the ‘iris’ dataset.</h3>
+<pre class="r"><code>library(reticulate)
+path_to_python &lt;- &quot;~/anaconda3/bin/python&quot;
+use_python(path_to_python)
+py_install(&quot;seaborn&quot;)
+py_install(&quot;numpy&quot;)</code></pre>
+</div>
+<div id="we-can-generate-a-plot-like-we-did-using-r-language-this-time-using-python-to-look-at-the-iris-flowers-with-above-average-petal-widths-and-lengths" class="section level3">
+<h3>We can generate a plot like we did using R language, this time using Python to look at the iris flowers with above average petal widths and lengths!</h3>
+<pre class="python"><code>import matplotlib.pyplot as plt
+import seaborn as sns
+import numpy as np
+import pandas as pd
+
+iris_p = sns.load_dataset(&#39;iris&#39;)
+iris_p</code></pre>
+<pre><code>##      sepal_length  sepal_width  petal_length  petal_width    species
+## 0             5.1          3.5           1.4          0.2     setosa
+## 1             4.9          3.0           1.4          0.2     setosa
+## 2             4.7          3.2           1.3          0.2     setosa
+## 3             4.6          3.1           1.5          0.2     setosa
+## 4             5.0          3.6           1.4          0.2     setosa
+## ..            ...          ...           ...          ...        ...
+## 145           6.7          3.0           5.2          2.3  virginica
+## 146           6.3          2.5           5.0          1.9  virginica
+## 147           6.5          3.0           5.2          2.0  virginica
+## 148           6.2          3.4           5.4          2.3  virginica
+## 149           5.9          3.0           5.1          1.8  virginica
+## 
+## [150 rows x 5 columns]</code></pre>
+<pre class="python"><code>iris_p.query(&#39;petal_width&gt;petal_width.median()&#39; and &#39;petal_length&gt;petal_length.median()&#39;) \
+.pipe((sns.scatterplot, &#39;data&#39;), \
+x=&#39;petal_width&#39;, y=&#39;petal_length&#39;, hue=&#39;species&#39;,alpha=.5)</code></pre>
+<p><img src="index_files/figure-html/unnamed-chunk-4-1.png" width="672" /></p>
+</div>
+<div id="we-can-do-the-same-filtering-searching-for-sepal-length-only-in-the-versicolor-species-but-this-time-using-python-language" class="section level3">
+<h3>We can do the same filtering, searching for sepal length only in the versicolor species, but this time using Python language!</h3>
+<pre class="python"><code>(iris_p.filter([&#39;sepal_length&#39;, &#39;species&#39;])
+.query(&#39;species == &quot;versicolor&quot;&#39;).head(3))</code></pre>
+<pre><code>##     sepal_length     species
+## 50           7.0  versicolor
+## 51           6.4  versicolor
+## 52           6.9  versicolor</code></pre>
+</div>
+</div>
+<div id="now-lets-run-python-chunks-and-then-access-the-data-created-through-r-chunks-i.e.-lets-use-pandas-to-read-and-manipulate-the-dataset-then-use-ggplot2-in-r-to-plot" class="section level2">
+<h2>Now, let’s run Python chunks and then access the data created through R chunks (i.e. let’s use pandas to read and manipulate the dataset, then use ggplot2 in R to plot)!</h2>
+<pre class="python"><code>import matplotlib.pyplot as plot
+import seaborn as sns
+import numpy as np
+import pandas as pd
+
+flights = sns.load_dataset(&#39;flights&#39;)
+flights</code></pre>
+<pre><code>##      year month  passengers
+## 0    1949   Jan         112
+## 1    1949   Feb         118
+## 2    1949   Mar         132
+## 3    1949   Apr         129
+## 4    1949   May         121
+## ..    ...   ...         ...
+## 139  1960   Aug         606
+## 140  1960   Sep         508
+## 141  1960   Oct         461
+## 142  1960   Nov         390
+## 143  1960   Dec         432
+## 
+## [144 rows x 3 columns]</code></pre>
+<pre class="python"><code>flights = flights.dropna()</code></pre>
+<pre class="r"><code>library(ggplot2)
+ggplot(py$flights, aes(year, passengers)) + geom_point() + geom_jitter()</code></pre>
+<p><img src="index_files/figure-html/unnamed-chunk-7-1.png" width="672" /></p>
+</div>
+</div>

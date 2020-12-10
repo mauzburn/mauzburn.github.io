@@ -1,0 +1,331 @@
+---
+title: 'Project 1: Exploratory Data Analysis'
+author: "SDS348"
+date: "2020-12-01"
+output:
+  html_document:
+    self_contained: no
+    toc: yes
+    toc_float:
+      collapsed: no
+      smooth_scroll: yes
+  pdf_document:
+    toc: no
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, eval = TRUE, fig.align = "center", warning = F, message = F, tidy=TRUE, tidy.opts=list(width.cutoff=60), R.options=list(max.print=100))
+```
+
+### Data Wrangling and Exploration
+
+### Introduction
+The data that I acquired for this project was found on the University of Wisconsin Population Health Institute's website, where I honed in on county health rankings. Because I intend on going to medical school and eventually becoming a doctor, I found health data to be of particular interest. More than this, however, I am passionate about educating myself on health disparities seen across different groups in our countries. For my project, I chose to look at the 50 most populated counties in Texas, so that I knew there would be a sufficient sample size in each county, and some of its health and economic statistics. I extracted data and created two different datasets, one of health statistics (i.e. poor health report, poor mental health report, premature death rate, and the number of primary care doctors in that county) and one of socioeconomic statistics (i.e. uninsured rate, population, unemployment rate, and median household income). I am incredibly interested to see the relationships that I feel exist between variables such as uninsured rate and premature death rate, as I postulate that the higher the uninsured rate in a county is, the higher its premature death rate will be, as well. I am an advocate for the universalization of healthcare, so putting numbers to the disparities I already know exist between people of different SE backgrounds will be especially significant to me.
+
+---  
+
+### Joining/Merging
+
+```{r}
+library(tidyverse)
+library(knitr)
+library(dplyr)
+
+#Join dataframes by common variable: county
+healthbycounty <- read.csv("healthbycounty.csv")
+socialeconomicdemographics <- read.csv("socialeconomicdemographics.csv")
+
+df <- healthbycounty %>% left_join(socialeconomicdemographics, by=c("county"))
+
+#Ensure that big dataset has at least 50 observations for each variable and at least 5 variables
+df %>% summarize(n_rows=n(), n_counties=n_distinct(county))
+ncol(df)
+```
+
+I chose to join these two datasets by county, which was the only choice. I created these datasets based off of data I extracted, so I set them up in a way where the datasets could be easily joined by county name. After this, I wanted to double check my work and make sure that I not only had 50 observations, but also that each observation (i.e. county) was unique and that I didn't have any repetitive data.
+
+
+---
+
+###Wrangling
+
+Create new variables using mutate, explore relationships among variables, generate a summary table.
+
+Here, I mutated my merged dataset to create new columns, one of a doctor per person proportion to account for drastic differences in population size, and two other columns for quantiles of population and uninsured rate for easier cross comparisons to be made later on.
+```{r}
+#Create column denoting number of doctors per person in each county's population
+df1 <- df %>% mutate(dr_per_person = (primary_care_dr/population))
+ncol(df1)
+
+#Create column denoting quartiles of uninsured rate per county and of population per county #Quartile 4 denotes the highest uninsurance rate and the greatest population.
+df2 <- df1 %>% mutate(uninsured4tile=ntile(uninsured_rate, 4)) %>% mutate(population4tile=ntile(population, 4)) 
+ncol(df2)
+```
+
+
+Examine relationships between variables using dplyr core functions
+```{r}
+#Examine relationship between above average uninsured rate, # of doctors per person, and premature death rates
+df3 <- df1 %>% select(uninsured_rate, dr_per_person, premature_deaths) %>% filter(uninsured_rate>=mean(uninsured_rate)) %>% arrange(desc(uninsured_rate))
+head(df3)
+#Examine relationship between below average uninsured rate, # of doctors per person, and premature death rates
+df4 <- df1 %>% select(uninsured_rate, dr_per_person, premature_deaths) %>% filter(uninsured_rate<=mean(uninsured_rate)) %>% arrange(uninsured_rate)
+head(df4) 
+
+#Compare health reports among the quartiles of uninsured rates in descending order of poor health reports
+table1 <- df2 %>% group_by(uninsured4tile) %>% select(poor_health_report, poor_mental_health, uninsured_rate, county) %>% arrange(desc(poor_health_report))
+head(table1)
+
+```
+
+
+Find percentiles and probabilities of certain conditions for the dataset
+```{r}
+#What unemployment rate is the cut for the 75th percentile in the 50 biggest Texan counties?
+qnorm(0.75, mean = mean(df2$unemployment_rate), sd = sd(df2$unemployment_rate))
+
+#What median household income is the cutoff to be in the 75th percentile in the 50 biggest Texan counties?
+qnorm(0.75, mean = mean(df2$med_house_income), sd = sd(df2$med_house_income))
+
+#If a county has 100 primary care physicians, what is the probability that a randomly selected county has less doctors than it?
+pnorm(100, mean = mean(df2$primary_care_dr), sd = sd(df2$primary_care_dr))
+
+#If a county has a premature death rate of 6000, what is the probability that a randomly selected county has a greater premature death rate?
+pnorm(6000, mean = mean(df2$premature_deaths), sd = sd(df2$premature_deaths))
+```
+
+
+Create overall summary statistics for the entire dataset
+```{r}
+#Mean of every numeric variable
+means <- df2 %>% summarize_at(vars(uninsured_rate:dr_per_person), mean, na.rm = T)
+
+#Standard deviation of all numeric variables
+stdevs <- df2 %>% summarize_at(vars(uninsured_rate:dr_per_person), sd, na.rm=T)
+
+#Overall table of min/max for each numeric variable
+summarytable <- df2 %>% summarize_if(is.numeric, list(min=min, max=max), na.rm = T)
+
+library(kableExtra)
+```
+
+
+Create summary statistics using the grouping function
+```{r}
+#Mean & standard dev. of unemployment rate, number of doctors per person, and premature death rate by uninsured quartile and population quartile
+meanhealth <- df2 %>% group_by(uninsured4tile, population4tile) %>% mutate(poptile = ntile(population,4)) %>%
+  summarize(avg.unemployment=mean(unemployment_rate, na.rm = T), avg.dr.per.person=mean(dr_per_person,na.rm = T),
+            avg.deathrate=mean(premature_deaths,na.rm=T), sd.unemployment=sd(unemployment_rate, na.rm = T),
+            sd.dr.per.person=sd(dr_per_person,na.rm = T),
+            sd.deathrate=sd(premature_deaths,na.rm=T), var.unemployment=var(unemployment_rate, na.rm = T),
+            var.dr.per.person=var(dr_per_person, na.rm=T), var.deathrate=var(premature_deaths, na.rm=T))
+
+#Remove rows with NA values - this occurred because some insurance4tile and population4tile combinations do not exist 
+meanhealth1 <- meanhealth %>% na.omit()
+head(meanhealth1)
+```
+
+
+Create a summary statistics table of a few numeric variables using kable package
+```{r}
+#Create a column denoting median household income quartile
+df5 <- df2 %>% mutate(income4tile=ntile(med_house_income,4)) %>%
+  mutate(UninsuredQtile = recode_factor(uninsured4tile,
+                                        "1" = "Q1",
+                                        "2" = "Q2",
+                                        "3" = "Q3",
+                                        "4" = "Q4")) %>%
+  mutate(IncomeQtile = recode_factor(income4tile,
+                                        "1" = "Q1",
+                                        "2" = "Q2",
+                                        "3" = "Q3",
+                                        "4" = "Q4"))
+
+#Create a subset of data for summary table
+sumtable <- df5[-c(1:2, 6:7, 11:13, 15)]
+
+
+#Create dataset with summary statistics for 3 variables grouped by uninsured quartile
+summaries <- sumtable %>% group_by(UninsuredQtile) %>% select(premature_deaths, poor_mental_health, poor_health_report) %>%
+  summarize_each(funs(min = min, 
+                      q25 = quantile(., 0.25), 
+                      median = median, 
+                      q75 = quantile(., 0.75), 
+                      max = max,
+                      mean = mean, 
+                      sd = sd)) 
+#Transpose summary stats df so that each quartile is its own column
+summaries1 <- data.frame(t(summaries[-1]))
+
+#Group rows by common variable 
+summaries3<-summaries1[c(1,4,7,10,13,16,19,2,5,8,11,14,17,20,3,6,9,12,15,18,21),] 
+
+
+#Create summary table with kable package
+library(kableExtra)
+sumfinal <- kable(summaries3[1:21,1:4], caption = "Uninsured Quartiles") %>% 
+  kable_styling("striped", full_width = F) %>%
+  pack_rows("Premature Deaths",1,7) %>%
+  pack_rows("Poor Mental Health Report",8,14) %>%
+  pack_rows("Poor Health Report", 15,21)
+sumfinal
+```
+
+Upon my preliminary exploration of the relationships my dataset held, I found that, first, lower premature death rates were found in counties with the lowest uninsured rates. This supports my hypothesis that the counties with higher levels of citizens who are uninsured also have higher premature death rates, which opens the door for further analysis to test if this correlation is due to the fact that those who are uninsured do not seek medical attention as readily. Second in this preliminary analysis, I found that of the four highest poor health reports across all counties, all of those were in the 4th uninsured quartile, meaning that they were in the top 25% of uninsured rates, and all also had high poor mental health reports. To test these relationships further, I created a summary statistic dataframe that calculated min, max, quantile 25, median, quantile 75, max, mean, and standard deviation. From this, I grouped each variable and all of its respective statistics in order to compile a summary statistics table. As seen in this table, across all three variables included (poor health report, poor mental health report, and premature death rate), people in the 3rd and especially the 4th quartile for uninsured rates had the highest values. This means that across these three factors, counties with higher rates of uninsured citizens had higher premature death rates, more poor health reports, and more poor mental health days reported. I found it of particular importance to include poor mental health reports in this analysis, for I feel as though it is often absent in reports such as these, but it obviously had a high correlation with rates of uninsurance and was therefore necessary, in my opinion.
+
+###Tidying/Reshaping
+
+Use both pivot_longer and pivot_wider to reshape the dataset
+```{r}
+#Reshape dataframe from wide to long by creating a stats column where the names of the calculated summary statistics go
+meanhealth2 <- meanhealth1 %>% pivot_longer(c(3:8), names_to="stat", values_to="value")
+head(meanhealth2)
+
+#Reshape dataframe back from long to wide by eliminating the stats column and instead having each summary statistic be its own column
+tidy1 <- meanhealth2 %>% pivot_wider(names_from="stat", values_from="value")
+head(tidy1)
+
+#Reshape dataframe from wide to long by creating a quartile column for both population quartile and uninsured quartile
+#First, make population quartile a factor so that it can be classified as categorical like uninsured quartile is
+meanhealth1$population4tile <- as.factor(meanhealth1$population4tile)
+meanhealth1$uninsured4tile <- as.factor(meanhealth1$uninsured4tile)
+meanhealth4 <- meanhealth1 %>% pivot_longer((1:2), names_to="quartile", values_to="value")
+head(meanhealth4)
+
+#Reshape dataframe back from long to wide by eliminating the quartile column and instead having a column for both population quartile and uninsured quartile 
+tidy2 <- meanhealth4 %>% pivot_wider(names_from="quartile", values_from="value")
+head(tidy2)
+```
+
+
+###Visualizing
+
+Create a correlation matrix and a correlation heatmap for each variable in the dataframe
+```{r}
+#Correlation matrix between each variable
+df5 %>% select_if(is.numeric) %>% cor()
+
+#Correlation heatmap of dataset
+df_c <- df5[,c(2:10)]
+cordf <- round(cor(df_c),2)
+library(reshape2)
+melted_cordf <- melt(cordf)
+ggplot(data=melted_cordf, aes(x=Var1, y=Var2, fill=value)) + geom_tile() + theme(axis.text.x = element_text(angle = 90, size=8)) + labs(melted_cordf, title="Correlation Heatmap") 
+```
+
+Create two unique plots to explore relationships among correlated variables from the calculations above
+```{r}
+#Scatterplot for relationship between poor mental health report and median household income by uninsured quartile
+library(ggthemes)
+df5$uninsured4tile <- as.factor(df5$uninsured4tile)
+ggplot(data = df5, aes(x= med_house_income, y = poor_mental_health, color = uninsured4tile)) +  geom_point()+
+  geom_smooth(method= "loess" , color="blue3", fill="azure4", se=TRUE) + labs(title="Relationship Between Mental Health and Income \n by Uninsured Status", x ="Median Household Income ($)", y = "Avg. Poor Mental Health Days \n (in the last 30 days)", color = "Uninsured Quartile") + theme_economist() + 
+  scale_color_economist() + scale_x_continuous(breaks = scales::pretty_breaks(n = 5))
+```
+
+In the above scatterplot, the relationship between median household income, average poor mental health days, and uninsured quartile was evaluated. As shown by the plot, there is a strong negative correlation between average poor mental health days and median household income, meaning that as a county's median household income increases, it's average poor mental health days report decreases. To compound this effect, looking at the points on the graph, colored by uninsured quartile, shows us that only those counties in uninsured quartile 1 experience the the lowest poor mental health days report and the highest median household income (at the bottom right of the graph). Conversely, the points furthest to the left of the graph (i.e. the highest poor mental health days report and the lowest median household income) belong to counties in the 4th uninsured rate quartile, meaning that these points belong to the counties with the highest rate of uninsured citizens. We are always told that "money doesn't buy happiness", but as this graph shows, money definitely allows us to gain necessary resources that, in turn, may set us up for success in the realm of satisfaction.
+
+
+```{r}
+#Barplot for relationship between premature death rate and uninsured rate quartiles by median household income quartile
+ggplot(df5, aes(x=uninsured4tile, y=premature_deaths, fill = IncomeQtile)) + geom_bar(stat="summary",position="dodge")+ geom_errorbar(stat="summary",position="dodge") + labs(title="Relationship Between Premature Death Rate and \n Uninsured Quartile by Income Quartile",
+  x="Uninsured Quartile", y="Premature Death Rate \n (per 100,000 people)", fill="Income Quartile")+
+  scale_fill_manual(values=c('#dadaeb','#9e9ac8', '#6a51a3', '#3f007d')) + scale_y_continuous(breaks = scales::pretty_breaks(n = 5)) + theme(axis.text = element_text(color='#3f007d')) + theme(axis.line = element_line(color = "black", linetype = 1 ))
+```
+In the above barplot, the relationship between premature death rate, uninsured quartile, and income quartile is examined. Right of the bat, one may notice the absence of the darkest purple bar, denoting the 4th income quartile (i.e. the highest median household incomes), on uninsured quartiles 3 and 4. This is due to the fact that in the scope of my dataset, counties who belong to the top 25th percentile of median household income are only in either the 1st or 2nd quartile for uninsurance rate. Additionally, those in the 4th quartile for income experience the lowest premature death rates in both uninsured quartiles they exist in, with the highest earners (income quartile 4) and least uninsured (uninsured quartile 1) having the lowest premature death rate across every group in the plot. This contrasts heavily with the 4th uninsured quartile, where counties who are in the 2nd income quartile have the highest overall premature death rate across the board. This difference is significant, for it is clear to see the chain of events that occurs from having money: you are able to buy insurance and therefore your life expectancy is longer due to sufficient medical attention. Conversely, when one doesn't have as much money, it is harder to obtain medical insurance and therefore one's risk of premature death increases due to a lack of sufficient medical attention. Tying back to my introduction, this graph illustrates how important insurance is for overall health and therefore it should be accessible to the majority, not just the minority who exists in the top income quartiles.
+
+###Dimensionality Reduction
+
+Principal Component Analysis
+
+Step 1: Prepare the data
+```{r}
+#Correlation matrix with z-scores
+df5 %>% select_if(is.numeric) %>% scale %>% cov %>% round(2)
+
+#Covariance matrix of df5
+df5 %>% select_if(is.numeric) %>% cov %>% round(2)
+
+#Visualization of relationship between strongly correlated variables 
+#Cleaning, normalization and running of princomp() on scaled data
+df5_ <- df5 %>% select(-c(11:15))
+df5_nums <- df5_ %>% select_if(is.numeric) %>% scale
+rownames(df5_nums)<-df5_$county
+
+```
+
+
+Step 2: Perform PCA
+```{r}
+#Use princomp() on prepared values to conduct analysis
+df5_pca <- princomp(df5_nums)
+names(df5_pca)
+summary(df5_pca, loadings=T)
+```
+
+
+Step 3: Choose the number of principal components & make a scree plot
+```{r}
+#Square PCA variables to convert SDs to eigenvalues, find proportion of var explained by each PC
+eigval <- df5_pca$sdev^2 
+varprop=round(eigval/sum(eigval), 2)   
+
+#Scree plot
+ggplot() + geom_bar(aes(y=varprop, x=1:9), stat="identity") + xlab("") +
+  geom_path(aes(x=1:9,y=varprop)) + geom_text(aes(x=1:9, y=varprop,
+                                                  label=round(varprop,2)), vjust=1,
+                                              col="white", size=5) +
+  scale_y_continuous(breaks=seq(0, 0.6, 0.2), labels = scales::percent) +
+  scale_x_continuous(breaks=1:10)
+
+#Calculate cumulative proportion of variance
+cumsum(eigval)/sum(eigval, 2)
+
+#View eigen values
+eigval
+```
+
+
+Step 4: Compute/grab PC scores
+```{r}
+#Plot new PC scores
+pc_plot <- data.frame(County=df5_$county, PC1=df5_pca$scores[,1],
+                      PC2=df5_pca$scores[,2])
+ggplot(pc_plot, aes(PC1, PC2)) + geom_point()
+
+#Find the counties with the highest scores on PC1
+df5_pca$scores[,1:4] %>% as.data.frame %>% top_n(3, Comp.1)
+df5_ %>% filter(county%in%c("CAMERON", "HIDALGO", "WEBB")) #low median income, high uninsured rate
+
+#Find the counties with the lowest score on PC1
+df5_pca$scores[,1:4] %>% as.data.frame %>% top_n(-3, Comp.1)
+df5_ %>% filter(county%in%c("COLLIN", "DENTON", "ROCKWALL")) #high median income, low uninsured rate
+
+
+#Find the counties with the highest score on PC2
+df5_pca$scores[,1:4] %>% as.data.frame %>% top_n(3, wt=Comp.2)
+df5_ %>% filter(county%in%c("HARRIS", "DALLAS", "BEXAR")) #high population, high number of primary care doctors, higher doctor/person ratio
+
+#Find the counties with the lowest score on PC2
+df5_pca$scores[,1:4] %>% as.data.frame %>% top_n(3, wt=desc(Comp.2))
+df5_ %>% filter(county%in%c("CORYELL", "HENDERSON", "ORANGE")) #low population, low number of primary care doctors, lower doctor/person ratio
+
+```
+
+
+Step 5: Visualize and interpret retained PCs and scores
+```{r}
+#Plot of PC scores
+df5_pca$loadings[1:8, 1:2] %>% as.data.frame %>% rownames_to_column %>%
+ggplot() + geom_hline(aes(yintercept=0), lty=2) +
+geom_vline(aes(xintercept=0), lty=2) + ylab("PC2") + xlab("PC1") +
+geom_segment(aes(x=0, y=0, xend=Comp.1, yend=Comp.2), arrow=arrow(), col="blue") +
+geom_label(aes(x=Comp.1*1.1, y=Comp.2*1.1, label=rowname))
+
+#Biplot of PC scores (for fun!)
+library(factoextra)
+fviz_pca_biplot(df5_pca) + coord_fixed()
+
+```
+
+After analyzing the first two principal components generated by the above principal component analysis, many relationships became clear. First, through comparison analysis of the countries who scored the highest for PC1 and the lowest for PC1, a correlation between median household income and uninsured rates was seen. The countries who scored highest for PC1 had low median incomes and high uninsurance rates, whereas the countries who scored lowest for PC1 had high median incomes and low uninsurance rates. This relationship is corroborated by my summary statistics, my summary table, and all of my plots, for they all showed this clear negative correlation between median income and uninsurance rate. As per my point above, lower income counties do not have high proportions of insured citizens in their populations because individuals cannot afford high premiums with low incomes. Second, through comparison analysis of the countries who scored the highest for PC2 and the lowest for PC2, a correlation between high population, high number of primary care doctors, and high doctor per person proportions was found. The counties Bexar, Harris and Dallas scored highest on PC2 and also had greater populations, higher numbers of primary care doctors and higher doctor per person rates. This makes sense, for 3 of the most densely populated counties would have a need for more doctors. The counties that scored the lowest on PC2 (i.e. the least populated counties) had expectedly small numbers of doctors and very low doctor:person ratios. This interested me, for many medical schools nowadays try to push for graduates to work in rural areas, such as the ones shown in this dataset. It is clear to me now why they advocate for this, for the doctor:person ratio in these areas is lacking in comparison to the more densely populated, urban areas. 

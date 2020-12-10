@@ -1,0 +1,12 @@
+---
+title: Meet the squad!
+author: Madeleine Ausburn
+date: '2020-12-05'
+slug: meet-the-squad
+categories: []
+tags: []
+---
+
+![These are my two sheltie pups, Lila and Bowie!](/Users/madeleineausburn/Desktop/website/website/content/post/2020-12-05-meet-the-squad/index_files/dogs.jpg)
+
+
